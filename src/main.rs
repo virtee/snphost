@@ -2,6 +2,8 @@
 
 #![deny(clippy::all)]
 
+mod ok;
+
 use std::{fs, path::PathBuf};
 
 use anyhow::{anyhow, Context, Result};
@@ -15,6 +17,9 @@ const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
 struct SnpHost {
     #[structopt(subcommand)]
     pub cmd: SnpHostCmd,
+
+    #[structopt(short, long, about = "Don't print anything to the console")]
+    pub quiet: bool,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -29,6 +34,12 @@ enum SnpHostCmd {
 
     #[structopt(about = "Import a certificate chain to the AMD PSP")]
     Import(import::Import),
+
+    #[structopt(about = "Probe system for SEV-SNP support")]
+    Ok {
+        #[structopt(subcommand)]
+        gen: Option<ok::SevGeneration>,
+    },
 }
 
 fn firmware() -> Result<Firmware> {
@@ -62,6 +73,7 @@ fn main() -> Result<()> {
         SnpHostCmd::Show(show) => show::cmd(show),
         SnpHostCmd::Export(export) => export::cmd(export),
         SnpHostCmd::Import(import) => import::cmd(import),
+        SnpHostCmd::Ok { gen } => ok::cmd(gen, snphost.quiet),
     }
 }
 
