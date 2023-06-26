@@ -372,13 +372,19 @@ fn collect_tests() -> Vec<Test> {
                         Test {
                             name: "SEV enabled in KVM",
                             gen_mask: SEV_MASK,
-                            run: Box::new(|| sev_enabled_in_kvm(false)),
+                            run: Box::new(|| sev_enabled_in_kvm(SevGeneration::Sev)),
                             sub: vec![],
                         },
                         Test {
                             name: "SEV-ES enabled in KVM",
                             gen_mask: ES_MASK,
-                            run: Box::new(|| sev_enabled_in_kvm(true)),
+                            run: Box::new(|| sev_enabled_in_kvm(SevGeneration::Es)),
+                            sub: vec![],
+                        },
+                        Test {
+                            name: "SEV-SNP enabled in KVM",
+                            gen_mask: SNP_MASK,
+                            run: Box::new(|| sev_enabled_in_kvm(SevGeneration::Snp)),
                             sub: vec![],
                         },
                         Test {
@@ -615,11 +621,11 @@ fn has_kvm_support() -> TestResult {
     }
 }
 
-fn sev_enabled_in_kvm(es: bool) -> TestResult {
-    let path_loc = if es {
-        "/sys/module/kvm_amd/parameters/sev_es"
-    } else {
-        "/sys/module/kvm_amd/parameters/sev"
+fn sev_enabled_in_kvm(gen: SevGeneration) -> TestResult {
+    let path_loc = match gen {
+        SevGeneration::Sev => "/sys/module/kvm_amd/parameters/sev",
+        SevGeneration::Es => "/sys/module/kvm_amd/parameters/sev_es",
+        SevGeneration::Snp => "/sys/module/kvm_amd/parameters/sev_snp",
     };
     let path = std::path::Path::new(path_loc);
 
@@ -648,10 +654,10 @@ fn sev_enabled_in_kvm(es: bool) -> TestResult {
     };
 
     TestResult {
-        name: if es {
-            "SEV-ES enabled in KVM"
-        } else {
-            "SEV enabled in KVM"
+        name: match gen {
+            SevGeneration::Sev => "SEV enabled in KVM",
+            SevGeneration::Es => "SEV-ES enabled in KVM",
+            SevGeneration::Snp => "SEV-SNP enabled in KVM",
         }
         .to_string(),
         stat,
