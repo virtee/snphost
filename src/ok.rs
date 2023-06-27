@@ -11,7 +11,6 @@ use std::{
     str::from_utf8,
 };
 
-use anyhow::anyhow;
 use colorful::*;
 
 #[derive(StructOpt, PartialEq, Eq)]
@@ -24,77 +23,6 @@ pub enum SevGeneration {
 
     #[structopt(about = "SEV + Secure Nested Paging")]
     Snp,
-}
-
-impl SevGeneration {
-    fn to_mask(&self) -> usize {
-        match self {
-            SevGeneration::Sev => SEV_MASK,
-            SevGeneration::Es => SEV_MASK | ES_MASK,
-            SevGeneration::Snp => SEV_MASK | ES_MASK | SNP_MASK,
-        }
-    }
-
-    // Get the SEV generation of the processor currently running on the machine.
-    // To do this, we execute a CPUID (label 0x80000001) and read the EAX
-    // register as an array of bytes (each byte representing 8 bits of a 32-bit
-    // value, thus the array is 4 bytes long). The formatting for these values is
-    // as follows:
-    //
-    //  Base model:         bits 4:7
-    //  Base family:        bits 8:11
-    //  Extended model:     bits 16:19
-    //  Extended family:    bits 20:27
-    //
-    // Extract the bit values from the array, and use them to calculate the MODEL
-    // and FAMILY of the processor.
-    //
-    // The family calculation is as follows:
-    //
-    //      FAMILY = Base family + Extended family
-    //
-    // The model calculation is a follows:
-    //
-    //      MODEL = Base model | (Extended model << 4)
-    //
-    // Compare these values with the models and families of known processor generations to
-    // determine which generation the current processor is a part of.
-    fn current() -> Result<Self> {
-        let cpuid = unsafe { x86_64::__cpuid(0x8000_0001) };
-        let bytes: Vec<u8> = cpuid.eax.to_le_bytes().to_vec();
-
-        let base_model = (bytes[0] & 0xF0) >> 4;
-        let base_family = bytes[1] & 0x0F;
-
-        let ext_model = bytes[2] & 0x0F;
-
-        let ext_family = {
-            let low = (bytes[2] & 0xF0) >> 4;
-            let high = (bytes[3] & 0x0F) << 4;
-
-            low | high
-        };
-
-        let model = (ext_model << 4) | base_model;
-        let family = base_family + ext_family;
-
-        let id = (model, family);
-
-        let naples = (1, 23);
-        let rome = (49, 23);
-        let milan = (1, 25);
-        let genoa = (17, 25);
-
-        if id == naples {
-            return Ok(SevGeneration::Sev);
-        } else if id == rome {
-            return Ok(SevGeneration::Es);
-        } else if id == milan || id == genoa {
-            return Ok(SevGeneration::Snp);
-        }
-
-        Err(anyhow!("processor is not of a known SEV generation"))
-    }
 }
 
 type TestFn = dyn Fn() -> TestResult;
@@ -456,17 +384,10 @@ fn collect_tests() -> Vec<Test> {
 
 const INDENT: usize = 2;
 
-pub fn cmd(gen: Option<SevGeneration>, quiet: bool) -> Result<()> {
+pub fn cmd(quiet: bool) -> Result<()> {
     let tests = collect_tests();
 
-    let mask = match gen {
-        Some(g) => g.to_mask(),
-        None => SevGeneration::current()
-            .unwrap_or(SevGeneration::Snp)
-            .to_mask(),
-    };
-
-    if run_test(&tests, 0, quiet, mask) {
+    if run_test(&tests, 0, quiet, SEV_MASK | ES_MASK | SNP_MASK) {
         Ok(())
     } else {
         Err(anyhow::anyhow!(

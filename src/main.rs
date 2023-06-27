@@ -36,10 +36,7 @@ enum SnpHostCmd {
     Import(import::Import),
 
     #[structopt(about = "Probe system for SEV-SNP support")]
-    Ok {
-        #[structopt(subcommand)]
-        gen: Option<ok::SevGeneration>,
-    },
+    Ok,
 }
 
 fn firmware() -> Result<Firmware> {
@@ -73,7 +70,7 @@ fn main() -> Result<()> {
         SnpHostCmd::Show(show) => show::cmd(show),
         SnpHostCmd::Export(export) => export::cmd(export),
         SnpHostCmd::Import(import) => import::cmd(import),
-        SnpHostCmd::Ok { gen } => ok::cmd(gen, snphost.quiet),
+        SnpHostCmd::Ok => ok::cmd(snphost.quiet),
     }
 }
 
