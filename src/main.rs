@@ -37,6 +37,9 @@ enum SnpHostCmd {
 
     #[structopt(about = "Probe system for SEV-SNP support")]
     Ok,
+
+    #[structopt(about = "Reset the SEV-SNP platform state")]
+    Reset,
 }
 
 fn firmware() -> Result<Firmware> {
@@ -71,6 +74,7 @@ fn main() -> Result<()> {
         SnpHostCmd::Export(export) => export::cmd(export),
         SnpHostCmd::Import(import) => import::cmd(import),
         SnpHostCmd::Ok => ok::cmd(snphost.quiet),
+        SnpHostCmd::Reset => reset::cmd(),
     }
 }
 
@@ -318,5 +322,16 @@ mod import {
                 path
             )),
         }
+    }
+}
+
+mod reset {
+    use super::*;
+
+    pub fn cmd() -> Result<()> {
+        firmware()?
+            .platform_reset()
+            .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
+            .context("error resetting SEV-SNP platform")
     }
 }
