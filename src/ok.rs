@@ -370,24 +370,6 @@ fn collect_tests() -> Vec<Test> {
                             sub: vec![],
                         },
                         Test {
-                            name: "SEV enabled in KVM",
-                            gen_mask: SEV_MASK,
-                            run: Box::new(|| sev_enabled_in_kvm(SevGeneration::Sev)),
-                            sub: vec![],
-                        },
-                        Test {
-                            name: "SEV-ES enabled in KVM",
-                            gen_mask: ES_MASK,
-                            run: Box::new(|| sev_enabled_in_kvm(SevGeneration::Es)),
-                            sub: vec![],
-                        },
-                        Test {
-                            name: "SEV-SNP enabled in KVM",
-                            gen_mask: SNP_MASK,
-                            run: Box::new(|| sev_enabled_in_kvm(SevGeneration::Snp)),
-                            sub: vec![],
-                        },
-                        Test {
                             name: "/dev/sev readable",
                             gen_mask: SEV_MASK,
                             run: Box::new(dev_sev_r),
@@ -440,7 +422,26 @@ fn collect_tests() -> Vec<Test> {
             name: "KVM Support",
             gen_mask: SEV_MASK,
             run: Box::new(has_kvm_support),
-            sub: vec![],
+            sub: vec![
+                Test {
+                    name: "SEV enabled in KVM",
+                    gen_mask: SEV_MASK,
+                    run: Box::new(|| sev_enabled_in_kvm(SevGeneration::Sev)),
+                    sub: vec![],
+                },
+                Test {
+                    name: "SEV-ES enabled in KVM",
+                    gen_mask: ES_MASK,
+                    run: Box::new(|| sev_enabled_in_kvm(SevGeneration::Es)),
+                    sub: vec![],
+                },
+                Test {
+                    name: "SEV-SNP enabled in KVM",
+                    gen_mask: SNP_MASK,
+                    run: Box::new(|| sev_enabled_in_kvm(SevGeneration::Snp)),
+                    sub: vec![],
+                },
+            ],
         },
         Test {
             name: "memlock limit",
