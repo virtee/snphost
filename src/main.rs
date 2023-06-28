@@ -69,13 +69,21 @@ fn main() -> Result<()> {
     env_logger::init();
 
     let snphost = SnpHost::from_args();
-    match snphost.cmd {
+    let result = match snphost.cmd {
         SnpHostCmd::Show(show) => show::cmd(show),
         SnpHostCmd::Export(export) => export::cmd(export),
         SnpHostCmd::Import(import) => import::cmd(import),
         SnpHostCmd::Ok => ok::cmd(snphost.quiet),
         SnpHostCmd::Reset => reset::cmd(),
+    };
+
+    if !snphost.quiet {
+        if let Err(ref e) = result {
+            eprintln!("ERROR: {}", e);
+        }
     }
+
+    result
 }
 
 mod show {
