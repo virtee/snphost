@@ -6,7 +6,7 @@ mod ok;
 
 use std::{fs, path::PathBuf};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use sev::firmware::host::*;
 use structopt::StructOpt;
 
@@ -213,7 +213,7 @@ mod export {
             let type_id = match e.cert_type {
                 CertType::ARK => {
                     if ark {
-                        return Err(anyhow!("multiple ARKs found"));
+                        bail!("multiple ARKs found");
                     }
                     ark = true;
 
@@ -221,7 +221,7 @@ mod export {
                 }
                 CertType::ASK => {
                     if ask {
-                        return Err(anyhow!("multiple ASKs found"));
+                        bail!("multiple ASKs found");
                     }
                     ask = true;
 
@@ -229,7 +229,7 @@ mod export {
                 }
                 CertType::VCEK => {
                     if vcek {
-                        return Err(anyhow!("multiple VCEKs found"));
+                        bail!("multiple VCEKs found");
                     }
                     vcek = true;
 
@@ -271,10 +271,7 @@ mod import {
 
     pub fn cmd(import: Import) -> Result<()> {
         if !import.path.exists() {
-            return Err(anyhow!(format!(
-                "path {} does not exist",
-                import.path.display()
-            )));
+            bail!(format!("path {} does not exist", import.path.display()));
         }
 
         let mut table: Vec<CertTableEntry> = vec![];
@@ -283,10 +280,10 @@ mod import {
             match dir_entry {
                 Ok(de) => table_add_entry(de, &mut table)?,
                 Err(_) => {
-                    return Err(anyhow!(format!(
+                    bail!(format!(
                         "unable to read directory at path {}",
                         import.path.display()
-                    )))
+                    ))
                 }
             }
         }
