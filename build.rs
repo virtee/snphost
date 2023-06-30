@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::{env, fs, io, process};
 
-const COMMANDS: [&str; 1] = ["sevctl"];
+const COMMANDS: [&str; 1] = ["snphost"];
 
 fn main() {
     let outdir = match env::var_os("OUT_DIR") {
