@@ -13,18 +13,6 @@ use std::{
 
 use colorful::*;
 
-#[derive(StructOpt, PartialEq, Eq)]
-pub enum SevGeneration {
-    #[structopt(about = "Secure Encrypted Virtualization")]
-    Sev,
-
-    #[structopt(about = "SEV + Encrypted State")]
-    Es,
-
-    #[structopt(about = "SEV + Secure Nested Paging")]
-    Snp,
-}
-
 type TestFn = dyn Fn() -> TestResult;
 
 // SEV generation-specific bitmasks.
@@ -50,6 +38,12 @@ enum TestState {
     Pass,
     Skip,
     Fail,
+}
+
+enum SevGeneration {
+    Sev,
+    Es,
+    Snp,
 }
 
 impl fmt::Display for TestState {
