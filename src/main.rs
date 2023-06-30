@@ -68,6 +68,21 @@ fn cert_entries() -> Result<Vec<CertTableEntry>> {
     }
 }
 
+fn vcek_url() -> Result<String> {
+    let id = firmware()?
+        .get_identifier()
+        .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
+        .context("error fetching identifier")?;
+    let status = platform_status()?;
+    let gen = ProcessorGeneration::current()?;
+
+    Ok(format!("https://kdsintf.amd.com/vcek/v1/{}/{}?blSPL={:02}&teeSPL={:02}&snpSPL={:02}&ucodeSPL={:02}",
+                         gen.to_string(), id, status.platform_tcb_version.bootloader,
+                         status.platform_tcb_version.tee,
+                         status.platform_tcb_version.snp,
+                         status.platform_tcb_version.microcode))
+}
+
 pub enum ProcessorGeneration {
     Milan,
     Genoa,
@@ -204,18 +219,9 @@ mod show {
                 status.reported_tcb_version, status.platform_tcb_version
             ),
             Show::VcekUrl => {
-                let id = firmware()?
-                    .get_identifier()
-                    .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
-                    .context("error fetching identifier")?;
-                let status = platform_status()?;
-                let gen = ProcessorGeneration::current()?;
+                let url = vcek_url()?;
 
-                println!("https://kdsintf.amd.com/vcek/v1/{}/{}?blSPL={:02}&teeSPL={:02}&snpSPL={:02}&ucodeSPL={:02}",
-                         gen.to_string(), id, status.platform_tcb_version.bootloader,
-                         status.platform_tcb_version.tee,
-                         status.platform_tcb_version.snp,
-                         status.platform_tcb_version.microcode);
+                println!("{}", url);
             }
             Show::Version => println!("{}", status.version),
         }
