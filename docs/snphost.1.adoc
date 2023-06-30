@@ -1,0 +1,116 @@
+snphost(1)
+==========
+
+NAME
+----
+snphost - Command line tool for managing the AMD SEV-SNP environment.
+
+
+SYNOPSIS
+--------
+*snphost* [GLOBAL_OPTIONS] [_COMMAND_] [_COMMAND_ARGS_] +
+*snphost* [_-h, --help_] +
+*snphost* *command* *--help*
+
+
+DESCRIPTION
+-----------
+snphost is a CLI utility for managing and interacting with the AMD SEV-SNP
+firmware device of a host system.
+
+
+GLOBAL OPTIONS
+--------------
+*-q, --quiet*:: Don't print any output to the console.
+
+
+COMMANDS
+--------
+*snphost export*::
+        usage: snphost export [der, pem] DIR-PATH
+
+        This command exports the SEV-SNP certificate chain to the directory
+        provided by DIR-PATH. User must specify if the certificates currently
+        stored on the PSP are encoded in DER or PEM format. These are the only
+        two encoding formats supported in this tool.
+
+  options:
+        -h, --help      Show a help message.
+
+*snphost import*::
+	usage: snphost import DIR-PATH
+
+        This command imports serialized SEV-SNP certificates to the host's PSP.
+        Currently, only the ASK, ARK, and VCEK are able to be imported to the
+        PSP. Note that there are a few user requirements for this command to
+        work as intended.
+
+        All certificates must be located in the same directory with specific
+        names:
+                ARK certificate => ark.{pem, der}
+                ASK certificate => ask.{pem, der}
+                VCEK certificate => vcek.{pem, der}
+
+        Not all certificates are needed in the directory, only the ones that a
+        user is looking to import to the PSP.
+
+  options:
+        -h, --help      Show a help message
+
+*snphost ok*::
+	usage: snphost ok
+
+        This command probes the processor, sysfs, and KVM for AMD SEV-SNP
+        related capabilities on the host and emits the results.
+
+ options:
+    -h, --help          Show a help message
+
+*snphost reset*::
+	usage: snphost reset
+
+        This command resets the SEV-SNP platform. This will clear all
+        persistent data managed by the platform.
+
+  options:
+        -h, --help      Show a help message.
+
+*snphost show*::
+        usage: snphost show [guests, identifier, tcb, vcek-url, version ]
+
+        This command describes the state of the SEV-SNP platform. There are
+        several platform details to describe:
+
+        Guest count:            snphost show guests
+        Platform identifier:    snphost show identifier
+        TCB version:            snphost show tcb
+        VCEK URL:               snphost show vcek-url
+        Firmware version:       snphost show version
+
+ options:
+    -h, --help          Show a help message
+
+*snphost verify*::
+	usage: snphost verify ARK-PATH ASK-PATH VCEK-PATH
+
+        This command verifies the full SEV-SNP/CA certificate chain.
+        Certificates must be encoded in PEM format.
+
+ options:
+    -h, --help          Show a help message
+
+*snphost vcek*::
+	usage: snphost vcek [ der, pem ] FILE-PATH
+
+        This command fetches the host system's VCEK and writes the encoded
+        certificate to the file at path FILE-PATH. User must specify which
+        format they would like the certificate to be encoded in (DER or PEM).
+
+ options:
+    -h, --help          Show a help message
+
+
+REPORTING BUGS
+--------------
+
+Please report all bugs to <https://github.com/virtee/snphost/issues>
