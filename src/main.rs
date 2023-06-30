@@ -169,26 +169,6 @@ mod show {
     use super::*;
 
     #[derive(StructOpt)]
-    pub enum Generation {
-        #[structopt(about = "Milan generation of SEV-SNP processors")]
-        Milan,
-
-        #[structopt(about = "Genoa generation of SEV-SNP processors")]
-        Genoa,
-    }
-
-    impl ToString for Generation {
-        fn to_string(&self) -> String {
-            let s = match self {
-                Self::Milan => "Milan",
-                Self::Genoa => "Genoa",
-            };
-
-            s.to_string()
-        }
-    }
-
-    #[derive(StructOpt)]
     pub enum Show {
         #[structopt(about = "Show the current number of guests")]
         Guests,
@@ -200,7 +180,7 @@ mod show {
         Tcb,
 
         #[structopt(about = "Show the VCEK DER download URL")]
-        VcekUrl(Generation),
+        VcekUrl,
 
         #[structopt(about = "Show the platform's firmware version")]
         Version,
@@ -223,12 +203,13 @@ mod show {
                 "Reported TCB: {}\nPlatform TCB: {}",
                 status.reported_tcb_version, status.platform_tcb_version
             ),
-            Show::VcekUrl(gen) => {
+            Show::VcekUrl => {
                 let id = firmware()?
                     .get_identifier()
                     .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
                     .context("error fetching identifier")?;
                 let status = platform_status()?;
+                let gen = ProcessorGeneration::current()?;
 
                 println!("https://kdsintf.amd.com/vcek/v1/{}/{}?blSPL={:02}&teeSPL={:02}&snpSPL={:02}&ucodeSPL={:02}",
                          gen.to_string(), id, status.platform_tcb_version.bootloader,
