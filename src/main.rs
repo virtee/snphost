@@ -4,7 +4,7 @@
 
 mod ok;
 
-use std::{arch::x86_64, fs, path::PathBuf};
+use std::{arch::x86_64, fs, path::PathBuf, result, str::FromStr};
 
 use anyhow::{anyhow, bail, Context, Result};
 use sev::firmware::host::*;
@@ -43,6 +43,11 @@ enum SnpHostCmd {
 
     #[structopt(about = "Verify a certificate chain")]
     Verify(verify::Verify),
+
+    #[structopt(
+        about = "Fetch the host processor's VCEK from the AMD Key Distribution Server (KDS)"
+    )]
+    Vcek(vcek::Vcek),
 }
 
 fn firmware() -> Result<Firmware> {
@@ -81,6 +86,36 @@ fn vcek_url() -> Result<String> {
                          status.platform_tcb_version.tee,
                          status.platform_tcb_version.snp,
                          status.platform_tcb_version.microcode))
+}
+
+#[derive(StructOpt)]
+pub enum CertEncodingFormat {
+    #[structopt(about = "Certificates are encoded in DER format")]
+    Der,
+
+    #[structopt(about = "Certificates are encoded in PEM format")]
+    Pem,
+}
+
+impl ToString for CertEncodingFormat {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Der => "der".to_string(),
+            Self::Pem => "pem".to_string(),
+        }
+    }
+}
+
+impl FromStr for CertEncodingFormat {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
+        match s {
+            "der" => Ok(Self::Der),
+            "pem" => Ok(Self::Pem),
+            _ => Err(anyhow!("unrecognized certificate encoding format")),
+        }
+    }
 }
 
 pub enum ProcessorGeneration {
@@ -169,6 +204,7 @@ fn main() -> Result<()> {
         SnpHostCmd::Ok => ok::cmd(snphost.quiet),
         SnpHostCmd::Reset => reset::cmd(),
         SnpHostCmd::Verify(verify) => verify::cmd(verify, snphost.quiet),
+        SnpHostCmd::Vcek(vcek) => vcek::cmd(vcek),
     };
 
     if !snphost.quiet {
@@ -233,45 +269,15 @@ mod show {
 mod export {
     use super::*;
 
-    use std::{io::Write, result, str::FromStr};
+    use std::io::Write;
 
     #[derive(StructOpt)]
     pub struct Export {
-        #[structopt(about = "The encoding format the certs are encoded in (PEM or DER)")]
+        #[structopt(about = "The format the certs are encoded in (PEM or DER)")]
         pub encoding_fmt: CertEncodingFormat,
 
         #[structopt(about = "The directory to write the certificates to")]
         pub dir_path: PathBuf,
-    }
-
-    #[derive(StructOpt)]
-    pub enum CertEncodingFormat {
-        #[structopt(about = "Certificates are encoded in PEM format")]
-        Pem,
-
-        #[structopt(about = "Certificates are encoded in DER format")]
-        Der,
-    }
-
-    impl ToString for CertEncodingFormat {
-        fn to_string(&self) -> String {
-            match self {
-                Self::Pem => "pem".to_string(),
-                Self::Der => "der".to_string(),
-            }
-        }
-    }
-
-    impl FromStr for CertEncodingFormat {
-        type Err = anyhow::Error;
-
-        fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-            match s {
-                "pem" => Ok(Self::Pem),
-                "der" => Ok(Self::Der),
-                _ => Err(anyhow!("unrecognized certificate encoding format")),
-            }
-        }
     }
 
     pub fn cmd(export: Export) -> Result<()> {
@@ -503,5 +509,60 @@ mod verify {
             name,
             path.display()
         ))
+    }
+}
+
+mod vcek {
+    use super::*;
+
+    use std::{fs::OpenOptions, io::Write};
+
+    use curl::easy::Easy;
+    use sev::certs::snp::Certificate;
+
+    #[derive(StructOpt)]
+    pub struct Vcek {
+        #[structopt(about = "The format in which to encode the certificate")]
+        encoding_fmt: CertEncodingFormat,
+
+        #[structopt(about = "The path of a file to store the encoded VCEK")]
+        path: PathBuf,
+    }
+
+    pub fn cmd(vcek: Vcek) -> Result<()> {
+        let url = vcek_url()?;
+        let cert = fetch(&url).context(format!("unable to fetch VCEK from {}", url))?;
+
+        let bytes = match vcek.encoding_fmt {
+            CertEncodingFormat::Der => cert.to_der()?,
+            CertEncodingFormat::Pem => cert.to_pem()?,
+        };
+
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(vcek.path)?;
+        file.write_all(&bytes)?;
+
+        Ok(())
+    }
+
+    pub fn fetch(url: &str) -> Result<Certificate> {
+        let mut handle = Easy::new();
+        let mut buf: Vec<u8> = Vec::new();
+
+        handle.url(url)?;
+        handle.get(true)?;
+
+        let mut transfer = handle.transfer();
+        transfer.write_function(|data| {
+            buf.extend_from_slice(data);
+            Ok(data.len())
+        })?;
+
+        transfer.perform()?;
+        drop(transfer);
+
+        Ok(Certificate::from_der(buf.as_slice())?)
     }
 }
