@@ -1,7 +1,25 @@
 [package]
 name = "snphost"
 version = "0.1.0"
+authors = ["The VirTEE Project Developers"]
 edition = "2021"
+license = "Apache-2.0"
+homepage = "https://github.com/virtee/snphost"
+repository = "https://github.com/virtee/snphost"
+description = "Administrative utility for AMD SEV-SNP"
+readme = "README.md"
+keywords = ["amd", "sev", "snp"]
+categories = ["os", "os::linux-apis", "parsing", "cryptography", "hardware-support"]
+exclude = [ ".gitignore", ".github/*" ]
+rust-version = "1.56"
+
+[badges]
+# See https://doc.rust-lang.org/cargo/reference/manifest.html#the-badges-section
+github = { repository = "virtee/snphost", workflow = "test" }
+#github = { repository = "virtee/snphost", workflow = "lint" }
+maintenance = { status = "actively-developed" }
+is-it-maintained-issue-resolution = { repository = "virtee/snphost" }
+is-it-maintained-open-issues = { repository = "virtee/snphost" }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
