@@ -16,7 +16,10 @@ fn main() {
 
     for command in COMMANDS {
         if let Err(err) = generate_man_page(&outdir, command) {
-            panic!("failed to generate man page: {}", err);
+            println!(
+                "failed to generate man page: {} (is asciidoctor installed?)",
+                err
+            );
         }
     }
 }
