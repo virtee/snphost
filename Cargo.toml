@@ -21,7 +21,8 @@ maintenance = { status = "actively-developed" }
 is-it-maintained-issue-resolution = { repository = "virtee/snphost" }
 is-it-maintained-open-issues = { repository = "virtee/snphost" }
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+dangerous_hw_tests = []
 
 [dependencies]
 anyhow = "1.0.71"
