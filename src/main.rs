@@ -44,10 +44,8 @@ enum SnpHostCmd {
     #[structopt(about = "Verify a certificate chain")]
     Verify(verify::Verify),
 
-    #[structopt(
-        about = "Fetch the host processor's VCEK from the AMD Key Distribution Server (KDS)"
-    )]
-    Vcek(vcek::Vcek),
+    #[structopt(about = "Retrieve some content from the AMD Key Distribution Server (KDS)")]
+    Fetch(fetch::Fetch),
 }
 
 fn firmware() -> Result<Firmware> {
@@ -71,6 +69,20 @@ fn cert_entries() -> Result<Vec<CertTableEntry>> {
         Some(c) => Ok(c),
         None => Err(anyhow!("no SNP certificates found")),
     }
+}
+
+fn cert_chain_url() -> Result<String> {
+    Ok(format!(
+        "https://kdsintf.amd.com/vcek/v1/{}/cert_chain",
+        ProcessorGeneration::current()?.to_string()
+    ))
+}
+
+fn crl_url() -> Result<String> {
+    Ok(format!(
+        "https://kdsintf.amd.com/vcek/v1/{}/crl",
+        ProcessorGeneration::current()?.to_string()
+    ))
 }
 
 fn vcek_url() -> Result<String> {
@@ -204,7 +216,7 @@ fn main() -> Result<()> {
         SnpHostCmd::Ok => ok::cmd(snphost.quiet),
         SnpHostCmd::Reset => reset::cmd(),
         SnpHostCmd::Verify(verify) => verify::cmd(verify, snphost.quiet),
-        SnpHostCmd::Vcek(vcek) => vcek::cmd(vcek),
+        SnpHostCmd::Fetch(fetch) => fetch::cmd(fetch),
     };
 
     if !snphost.quiet {
@@ -510,6 +522,142 @@ mod verify {
             name,
             path.display()
         ))
+    }
+}
+
+mod fetch {
+    use super::*;
+
+    #[derive(StructOpt)]
+    pub enum Fetch {
+        #[structopt(about = "Fetches the VCEK from the KDS")]
+        Vcek(vcek::Vcek),
+
+        #[structopt(about = "Fetches the CA from the KDS")]
+        Ca(ca::Ca),
+
+        #[structopt(about = "Fetches the CRL from the KDS")]
+        Crl(crl::Crl),
+    }
+
+    pub fn cmd(fetch: Fetch) -> Result<()> {
+        match fetch {
+            Fetch::Vcek(vcek) => vcek::cmd(vcek),
+            Fetch::Ca(ca) => ca::cmd(ca),
+            Fetch::Crl(crl) => crl::cmd(crl),
+        }
+    }
+}
+
+mod crl {
+    use super::*;
+    use curl::easy::Easy;
+    use std::{fs::OpenOptions, io::Write};
+
+    #[derive(StructOpt)]
+    pub struct Crl {
+        #[structopt(about = "The directory to write the CRL to")]
+        pub dir_path: PathBuf,
+    }
+
+    pub fn cmd(crl: Crl) -> Result<()> {
+        let url: String = crl_url()?;
+        let bytes: Vec<u8> = fetch(&url)?;
+
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(crl.dir_path.join(format!(
+                "{}.crl",
+                ProcessorGeneration::current()?.to_string()
+            )))?;
+        file.write_all(&bytes)
+            .context("Failed to write CRL to directory specified!")
+    }
+
+    pub fn fetch(url: &str) -> Result<Vec<u8>> {
+        let mut handle = Easy::new();
+        let mut buf: Vec<u8> = Vec::new();
+
+        handle.url(url)?;
+        handle.get(true)?;
+
+        let mut transfer = handle.transfer();
+        transfer.write_function(|data| {
+            buf.extend_from_slice(data);
+            Ok(data.len())
+        })?;
+
+        transfer.perform()?;
+        drop(transfer);
+
+        Ok(buf)
+    }
+}
+
+mod ca {
+    use super::*;
+    use anyhow::{Context, Result};
+    use curl::easy::Easy;
+    use sev::certs::snp::{ca::Chain, Certificate};
+    use std::{fs::OpenOptions, io::Write};
+
+    #[derive(StructOpt)]
+    pub struct Ca {
+        #[structopt(about = "The format the certs are encoded in (PEM or DER)")]
+        pub encoding_fmt: CertEncodingFormat,
+
+        #[structopt(about = "The directory to write the certificates to")]
+        pub dir_path: PathBuf,
+    }
+
+    fn write_cert(path: &PathBuf, bytes: &[u8]) -> Result<()> {
+        let mut file = OpenOptions::new().create(true).write(true).open(path)?;
+        file.write_all(bytes)
+            .context("Failed to write certificate!")
+    }
+
+    pub fn cmd(ca: Ca) -> Result<()> {
+        let url: String = cert_chain_url()?;
+        let cert_chain: Chain = fetch(&url)?;
+
+        let ((ask_path, ask_bytes), (ark_path, ark_bytes)) = match ca.encoding_fmt {
+            CertEncodingFormat::Der => (
+                ("ask.der", cert_chain.ask.to_der()?),
+                ("ark.der", cert_chain.ark.to_der()?),
+            ),
+            CertEncodingFormat::Pem => (
+                ("ask.pem", cert_chain.ask.to_pem()?),
+                ("ark.pem", cert_chain.ark.to_pem()?),
+            ),
+        };
+
+        write_cert(&ca.dir_path.join(ask_path), &ask_bytes)?;
+        write_cert(&ca.dir_path.join(ark_path), &ark_bytes)?;
+
+        Ok(())
+    }
+
+    pub fn fetch(url: &str) -> Result<Chain> {
+        let mut handle = Easy::new();
+        let mut buf: Vec<u8> = Vec::new();
+
+        handle.url(url)?;
+        handle.get(true)?;
+
+        let mut transfer = handle.transfer();
+        transfer.write_function(|data| {
+            buf.extend_from_slice(data);
+            Ok(data.len())
+        })?;
+
+        transfer.perform()?;
+        drop(transfer);
+
+        Ok(Chain {
+            ask: Certificate::from_pem(&buf[..2325])?,
+            ark: Certificate::from_pem(&buf[2325..])?,
+        })
     }
 }
 
