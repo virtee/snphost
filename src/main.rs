@@ -71,7 +71,7 @@ fn cert_entries() -> Result<Vec<CertTableEntry>> {
     }
 }
 
-fn cert_chain_url() -> Result<String> {
+fn ca_chain_url() -> Result<String> {
     Ok(format!(
         "https://kdsintf.amd.com/vcek/v1/{}/cert_chain",
         ProcessorGeneration::current()?.to_string()
@@ -552,7 +552,10 @@ mod fetch {
 mod crl {
     use super::*;
     use curl::easy::Easy;
-    use std::{fs::OpenOptions, io::Write};
+    use std::{
+        fs::{create_dir_all, OpenOptions},
+        io::Write,
+    };
 
     #[derive(StructOpt)]
     pub struct Crl {
@@ -564,6 +567,11 @@ mod crl {
         let url: String = crl_url()?;
         let bytes: Vec<u8> = fetch(&url)?;
 
+        // Create Directory if not exists first, then write the files.
+        if !crl.dir_path.exists() {
+            create_dir_all(&crl.dir_path)?;
+        }
+
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
@@ -571,6 +579,7 @@ mod crl {
                 "{}.crl",
                 ProcessorGeneration::current()?.to_string()
             )))?;
+
         file.write_all(&bytes)
             .context("Failed to write CRL to directory specified!")
     }
@@ -600,7 +609,10 @@ mod ca {
     use anyhow::{Context, Result};
     use curl::easy::Easy;
     use sev::certs::snp::{ca::Chain, Certificate};
-    use std::{fs::OpenOptions, io::Write};
+    use std::{
+        fs::{create_dir_all, OpenOptions},
+        io::Write,
+    };
 
     #[derive(StructOpt)]
     pub struct Ca {
@@ -618,7 +630,7 @@ mod ca {
     }
 
     pub fn cmd(ca: Ca) -> Result<()> {
-        let url: String = cert_chain_url()?;
+        let url: String = ca_chain_url()?;
         let cert_chain: Chain = fetch(&url)?;
 
         let ((ask_path, ask_bytes), (ark_path, ark_bytes)) = match ca.encoding_fmt {
@@ -631,6 +643,11 @@ mod ca {
                 ("ark.pem", cert_chain.ark.to_pem()?),
             ),
         };
+
+        // Create Directory if not exists first, then write the files.
+        if !ca.dir_path.exists() {
+            create_dir_all(&ca.dir_path)?;
+        }
 
         write_cert(&ca.dir_path.join(ask_path), &ask_bytes)?;
         write_cert(&ca.dir_path.join(ark_path), &ark_bytes)?;
@@ -664,7 +681,10 @@ mod ca {
 mod vcek {
     use super::*;
 
-    use std::{fs::OpenOptions, io::Write};
+    use std::{
+        fs::{create_dir_all, OpenOptions},
+        io::Write,
+    };
 
     use curl::easy::Easy;
     use sev::certs::snp::Certificate;
@@ -674,7 +694,7 @@ mod vcek {
         #[structopt(about = "The format in which to encode the certificate")]
         encoding_fmt: CertEncodingFormat,
 
-        #[structopt(about = "The path of a file to store the encoded VCEK")]
+        #[structopt(about = "The path of a directory to store the encoded VCEK in")]
         path: PathBuf,
     }
 
@@ -682,16 +702,22 @@ mod vcek {
         let url = vcek_url()?;
         let cert = fetch(&url).context(format!("unable to fetch VCEK from {}", url))?;
 
-        let bytes = match vcek.encoding_fmt {
-            CertEncodingFormat::Der => cert.to_der()?,
-            CertEncodingFormat::Pem => cert.to_pem()?,
+        let (vcek_name, vcek_bytes) = match vcek.encoding_fmt {
+            CertEncodingFormat::Der => ("vcek.der", cert.to_der()?),
+            CertEncodingFormat::Pem => ("vcek.pem", cert.to_pem()?),
         };
+
+        // Create Directory if not exists first, then write the files.
+        if !vcek.path.exists() {
+            create_dir_all(&vcek.path)?;
+        }
 
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
-            .open(vcek.path)?;
-        file.write_all(&bytes)?;
+            .open(vcek.path.join(vcek_name))?;
+
+        file.write_all(&vcek_bytes)?;
 
         Ok(())
     }
