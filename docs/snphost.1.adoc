@@ -100,32 +100,32 @@ COMMANDS
     -h, --help          Show a help message
 
 *snphost fetch ca*::
-	usage: snphost fetch ca [ der, pem ] FILE-PATH
+	usage: snphost fetch ca [ der, pem ] DIR-PATH
 
-        This command fetches the host system's certificate chain  and writes
-		the encoded certificates to the file at path FILE-PATH. Users must
-		specify which format they would like the certificate to be encoded
-		in (DER or PEM).
+        This command fetches the host system's certificate chain and writes
+        the encoded certificates to the directory at path DIR-PATH. Users must
+        specify which format they would like the certificate to be encoded
+        in (DER or PEM).
 
  options:
     -h, --help          Show a help message
 
 *snphost fetch vcek*::
-	usage: snphost fetch vcek [ der, pem ] FILE-PATH
+	usage: snphost fetch vcek [ der, pem ] DIR-PATH
 
         This command fetches the host system's versioned chip endorsement
-		key (VCEK) and writes the encoded certificate to the file at path
-		FILE-PATH. Users must specify which format they would like the
-		certificate to be encoded in (DER or PEM).
+        key (VCEK) and writes the encoded certificate to the directory at path
+        DIR-PATH. Users must specify which format they would like the
+        certificate to be encoded in (DER or PEM).
 
  options:
     -h, --help          Show a help message
 
 *snphost fetch crl*::
-	usage: snphost fetch crl FILE-PATH
+	usage: snphost fetch crl DIR-PATH
 
         This command fetches the host system's certificate revokation list
-		(CRL) and writes the encoded certificate to the file at path FILE-PATH.
+        (CRL) and writes the encoded list to the directory at path DIR-PATH.
 
  options:
     -h, --help          Show a help message
