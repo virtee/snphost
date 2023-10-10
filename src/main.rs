@@ -279,9 +279,19 @@ mod show {
 }
 
 mod export {
+    use sev::certs::snp::Certificate;
+
     use super::*;
 
     use std::io::Write;
+
+    fn identify_cert(buf: &[u8]) -> CertEncodingFormat {
+        const PEM_START: &[u8] = b"-----BEGIN CERTIFICATE-----";
+        match buf {
+            PEM_START => CertEncodingFormat::Pem,
+            _ => CertEncodingFormat::Der,
+        }
+    }
 
     #[derive(StructOpt)]
     pub struct Export {
@@ -330,6 +340,20 @@ mod export {
                 _ => continue,
             };
 
+            // Attempt to identify the current format of the certificate in
+            // hypervisor memory and build a Certificate from it.
+            let certificate: Certificate = match identify_cert(&e.data[..27]) {
+                CertEncodingFormat::Der => Certificate::from_der(&e.data)?,
+                CertEncodingFormat::Pem => Certificate::from_pem(&e.data)?,
+            };
+
+            // Verify the certificate is in the requested format.
+            let formatted_data: Vec<u8> = match export.encoding_fmt {
+                CertEncodingFormat::Der => certificate.to_der()?,
+                CertEncodingFormat::Pem => certificate.to_pem()?,
+            };
+
+            // Build out the expected name of the file.
             let name = format!(
                 "{}/{}.{}",
                 export.dir_path.display(),
@@ -337,12 +361,14 @@ mod export {
                 export.encoding_fmt.to_string()
             );
 
+            // Create the file for writing and open a file-handle.
             let mut file = fs::OpenOptions::new()
                 .write(true)
                 .create(true)
                 .open(name.clone())?;
 
-            file.write_all(&e.data)
+            // Write out the contents of the certificate to the file.
+            file.write_all(&formatted_data)
                 .context(format!("unable to cert data to file {}", name))?;
         }
 
