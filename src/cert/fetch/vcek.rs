@@ -76,8 +76,8 @@ pub fn vcek_url() -> Result<String> {
     let gen = ProcessorGeneration::current()?;
 
     Ok(format!("https://kdsintf.amd.com/vcek/v1/{}/{}?blSPL={:02}&teeSPL={:02}&snpSPL={:02}&ucodeSPL={:02}",
-                         gen.to_string(), id, status.platform_tcb_version.bootloader,
-                         status.platform_tcb_version.tee,
-                         status.platform_tcb_version.snp,
-                         status.platform_tcb_version.microcode))
+                         gen.to_string(), id, status.reported_tcb_version.bootloader,
+                         status.reported_tcb_version.tee,
+                         status.reported_tcb_version.snp,
+                         status.reported_tcb_version.microcode))
 }
