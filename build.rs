@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::Path;
-use std::{env, fs, io, process};
+use std::{
+    env,
+    fs::{self, OpenOptions},
+    io,
+    path::Path,
+    process,
+};
 
 const COMMANDS: [&str; 1] = ["snphost"];
 
@@ -13,6 +18,10 @@ fn main() {
         }
     };
     fs::create_dir_all(&outdir).unwrap();
+
+    if sev_rw() {
+        println!("cargo:rustc-cfg=has_sev");
+    }
 
     for command in COMMANDS {
         if let Err(err) = generate_man_page(&outdir, command) {
@@ -51,4 +60,12 @@ fn generate_man_page<P: AsRef<Path>>(outdir: P, command: &str) -> io::Result<()>
         return Err(io::Error::new(io::ErrorKind::Other, msg));
     }
     Ok(())
+}
+
+fn sev_rw() -> bool {
+    OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/sev")
+        .is_ok()
 }
