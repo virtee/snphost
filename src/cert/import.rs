@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use sev::firmware::host::{CertTableEntry, CertType, ExtConfig};
+use sev::firmware::host::{CertTableEntry, CertType};
 use std::{
-    fs::{read, read_dir, DirEntry},
+    fs::{read, read_dir, DirEntry, File},
+    io::Write,
     path::PathBuf,
 };
-
-use crate::firmware;
 
 use structopt::StructOpt;
 
@@ -14,30 +13,49 @@ use anyhow::{anyhow, bail, Context, Result};
 
 #[derive(StructOpt)]
 pub struct Import {
-    #[structopt(about = "The directory to find the encoded certificates")]
-    pub path: PathBuf,
+    #[structopt(about = "The directory where the certificates are stored")]
+    pub cert_dir: PathBuf,
+
+    #[structopt(about = "File where the formatted certificates will be stored.")]
+    pub target_file: PathBuf,
 }
 
 pub fn cmd(import: Import) -> Result<()> {
-    if !import.path.exists() {
-        bail!(format!("path {} does not exist", import.path.display()));
+    if !import.cert_dir.exists() {
+        bail!(format!("path {} does not exist", import.cert_dir.display()));
     }
 
     let mut table: Vec<CertTableEntry> = vec![];
 
-    for dir_entry in read_dir(import.path.clone())? {
+    // For each cert in the directory convert into a kernel formatted cert and write into file
+    for dir_entry in read_dir(import.cert_dir.clone())? {
         match dir_entry {
             Ok(de) => table_add_entry(de, &mut table)?,
             Err(_) => {
                 bail!(format!(
                     "unable to read directory at path {}",
-                    import.path.display()
+                    import.cert_dir.display()
                 ))
             }
         }
     }
 
-    firmware()?.snp_set_ext_config(ExtConfig::new_certs_only(table))?;
+    let cert_bytes = CertTableEntry::cert_table_to_vec_bytes(&table)
+        .context("Failed to convert certificates to GHCB formatted bytes.")?;
+
+    // Write cert into directory
+    let mut file = if import.target_file.exists() {
+        std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(import.target_file)
+            .context("Unable to overwrite kernel cert file contents")?
+    } else {
+        File::create(import.target_file).context("Unable to create kernel cert file")?
+    };
+
+    file.write(&cert_bytes)
+        .context(format!("unable to write data to file {:?}", file))?;
 
     Ok(())
 }

@@ -2,12 +2,17 @@
 
 use super::EncodingFormat;
 use anyhow::{bail, Context, Result};
-use sev::{certs::snp::Certificate, firmware::host::CertType};
+use sev::{
+    certs::snp::Certificate,
+    firmware::host::{CertTableEntry, CertType},
+};
 use structopt::StructOpt;
 
-use std::{io::Write, path::PathBuf};
-
-use crate::cert_entries;
+use std::{
+    fs::File,
+    io::{BufReader, Read, Write},
+    path::PathBuf,
+};
 
 fn identify_cert(buf: &[u8]) -> EncodingFormat {
     const PEM_START: &[u8] = b"-----BEGIN CERTIFICATE-----";
@@ -17,13 +22,23 @@ fn identify_cert(buf: &[u8]) -> EncodingFormat {
     }
 }
 
+// Convert kernel formatted certs into user readable certificates
+fn cert_entries(cert_bytes: &mut [u8]) -> Result<Vec<CertTableEntry>> {
+    let certs = CertTableEntry::vec_bytes_to_cert_table(cert_bytes)
+        .context("Could not convert bytes to certs")?;
+    Ok(certs)
+}
+
 #[derive(StructOpt)]
 pub struct Export {
-    #[structopt(about = "The format the certs are encoded in (PEM or DER)")]
+    #[structopt(about = "The format the certs will be encoded in (PEM or DER)")]
     pub encoding_fmt: EncodingFormat,
 
     #[structopt(about = "The directory to write the certificates to")]
     pub dir_path: PathBuf,
+
+    #[structopt(about = "File where the formatted certificates are stored.")]
+    pub target_file: PathBuf,
 }
 
 pub fn cmd(export: Export) -> Result<()> {
@@ -34,7 +49,17 @@ pub fn cmd(export: Export) -> Result<()> {
         export.dir_path.display()
     ))?;
 
-    let entries = cert_entries()?;
+    // Read the cert file with the kenrel formatted certs
+    let cert_file = File::open(export.target_file)?;
+    let mut reader = BufReader::new(cert_file);
+    let mut cert_bytes = Vec::new();
+
+    // Read file into vector.
+    reader.read_to_end(&mut cert_bytes)?;
+
+    // Create a vec of CertTableEntry (x509 versioned)
+    let entries = cert_entries(&mut cert_bytes)?;
+
     for e in entries {
         let type_id = match e.cert_type {
             CertType::ARK => {

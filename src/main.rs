@@ -3,15 +3,15 @@
 #![deny(clippy::all)]
 
 mod cert;
+mod config;
 mod processor;
-mod reset;
 mod show;
 
 mod ok;
 
 use cert::{export, fetch, import, verify};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use sev::firmware::host::*;
 use structopt::StructOpt;
 
@@ -34,23 +34,37 @@ enum SnpHostCmd {
     #[structopt(about = "Display information about the SEV-SNP platform")]
     Show(show::Show),
 
-    #[structopt(about = "Export a certificate chain to a given directory")]
+    #[structopt(
+        about = "Export a certificate chain from a kernel format file to a given directory"
+    )]
     Export(export::Export),
 
-    #[structopt(about = "Import a certificate chain to the AMD PSP")]
+    #[structopt(about = "Import a certificate chain to a file")]
     Import(import::Import),
 
     #[structopt(about = "Probe system for SEV-SNP support")]
     Ok,
 
-    #[structopt(about = "Reset the SEV-SNP platform state")]
-    Reset,
+    #[structopt(about = "Modify the SNP configuration")]
+    Config(config::ConfigCmd),
 
     #[structopt(about = "Verify a certificate chain")]
     Verify(verify::Verify),
 
-    #[structopt(about = "Retrieve some content from the AMD Key Distribution Server (KDS)")]
+    #[structopt(about = "Retrieve content from the AMD Key Distribution Server (KDS)")]
     Fetch(fetch::Fetch),
+
+    #[structopt(about = "Commit current firmware and TCB versions to PSP")]
+    Commit,
+}
+
+// Commit command
+mod commit {
+    use super::*;
+    pub fn cmd() -> Result<()> {
+        firmware()?.snp_commit()?;
+        Ok(())
+    }
 }
 
 fn firmware() -> Result<Firmware> {
@@ -71,18 +85,6 @@ fn sev_platform_status() -> Result<Status> {
         .context("unable to retrieve SEV platform status")
 }
 
-fn cert_entries() -> Result<Vec<CertTableEntry>> {
-    let config = firmware()?
-        .snp_get_ext_config()
-        .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
-        .context("unable to retrieve SNP certificates")?;
-
-    match config.certs {
-        Some(c) => Ok(c),
-        None => Err(anyhow!("no SNP certificates found")),
-    }
-}
-
 fn main() -> Result<()> {
     env_logger::init();
 
@@ -92,9 +94,10 @@ fn main() -> Result<()> {
         SnpHostCmd::Export(export) => export::cmd(export),
         SnpHostCmd::Import(import) => import::cmd(import),
         SnpHostCmd::Ok => ok::cmd(snphost.quiet),
-        SnpHostCmd::Reset => reset::cmd(),
+        SnpHostCmd::Config(subcmd) => config::cmd(subcmd),
         SnpHostCmd::Verify(verify) => verify::cmd(verify, snphost.quiet),
         SnpHostCmd::Fetch(fetch) => fetch::cmd(fetch),
+        SnpHostCmd::Commit => commit::cmd(),
     };
 
     if !snphost.quiet {
