@@ -13,7 +13,7 @@ use structopt::StructOpt;
 fn crl_url() -> Result<String> {
     Ok(format!(
         "https://kdsintf.amd.com/vcek/v1/{}/crl",
-        ProcessorGeneration::current()?.to_string()
+        ProcessorGeneration::current()?.to_kds_url()
     ))
 }
 
@@ -34,10 +34,11 @@ pub fn cmd(crl: Crl) -> Result<()> {
 
     let mut file = OpenOptions::new()
         .create(true)
+        .truncate(true)
         .write(true)
         .open(crl.dir_path.join(format!(
             "{}.crl",
-            ProcessorGeneration::current()?.to_string()
+            ProcessorGeneration::current()?.to_kds_url()
         )))?;
 
     file.write_all(&bytes)

@@ -23,7 +23,11 @@ pub struct Ca {
 }
 
 fn write_cert(path: &PathBuf, bytes: &[u8]) -> Result<()> {
-    let mut file = OpenOptions::new().create(true).write(true).open(path)?;
+    let mut file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(path)?;
     file.write_all(bytes)
         .context("Failed to write certificate!")
 }
@@ -79,6 +83,6 @@ pub fn fetch(url: &str) -> Result<Chain> {
 fn ca_chain_url() -> Result<String> {
     Ok(format!(
         "https://kdsintf.amd.com/vcek/v1/{}/cert_chain",
-        ProcessorGeneration::current()?.to_string()
+        ProcessorGeneration::current()?.to_kds_url()
     ))
 }
