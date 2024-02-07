@@ -6,6 +6,8 @@ use std::arch::x86_64;
 pub enum ProcessorGeneration {
     Milan,
     Genoa,
+    Bergamo,
+    Siena,
 }
 
 impl ProcessorGeneration {
@@ -35,6 +37,10 @@ impl ProcessorGeneration {
     // determine which generation the current processor is a part of.
     pub(crate) fn current() -> Result<Self> {
         let cpuid = unsafe { x86_64::__cpuid(0x8000_0001) };
+
+        // Bits 31:28 are used to differentiate between Bergamo and Siena machines.
+        let socket = (cpuid.ebx & 0xF0000000u32) >> 0x1C;
+
         let bytes: Vec<u8> = cpuid.eax.to_le_bytes().to_vec();
 
         let base_model = (bytes[0] & 0xF0) >> 4;
@@ -52,28 +58,38 @@ impl ProcessorGeneration {
         let model = (ext_model << 4) | base_model;
         let family = base_family + ext_family;
 
-        let id = (model, family);
-
-        let milan = (1, 25);
-        let genoa = (17, 25);
-
-        if id == milan {
-            return Ok(Self::Milan);
-        } else if id == genoa {
-            return Ok(Self::Genoa);
+        match family {
+            0x19 => match model {
+                0x0..=0xF => Ok(Self::Milan),
+                0x10..=0x1F => Ok(Self::Genoa),
+                0xA0..=0xAF => match socket {
+                    0x4 => Ok(Self::Bergamo),
+                    0x8 => Ok(Self::Siena),
+                    _ => Err(anyhow!("processor is not of a known SEV-SNP generation")),
+                },
+                _ => Err(anyhow!("processor is not of a known SEV-SNP model")),
+            },
+            _ => Err(anyhow!("processor is not of a known SEV-SNP family")),
         }
+    }
 
-        Err(anyhow!("processor is not of a known SEV-SNP generation"))
+    pub(crate) fn to_kds_url(&self) -> String {
+        match self {
+            Self::Genoa | Self::Bergamo | Self::Siena => &Self::Genoa,
+            _ => self,
+        }
+        .to_string()
     }
 }
 
 impl ToString for ProcessorGeneration {
     fn to_string(&self) -> String {
-        let sstr = match self {
+        match self {
             Self::Milan => "Milan",
             Self::Genoa => "Genoa",
-        };
-
-        sstr.to_string()
+            Self::Bergamo => "Bergamo",
+            Self::Siena => "Siena",
+        }
+        .to_string()
     }
 }

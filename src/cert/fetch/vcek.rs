@@ -40,6 +40,7 @@ pub fn cmd(vcek: Vcek) -> Result<()> {
 
     let mut file = OpenOptions::new()
         .create(true)
+        .truncate(true)
         .write(true)
         .open(vcek.path.join(vcek_name))?;
 
@@ -73,10 +74,10 @@ pub fn vcek_url() -> Result<String> {
         .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
         .context("error fetching identifier")?;
     let status = platform_status()?;
-    let gen = ProcessorGeneration::current()?;
+    let gen = ProcessorGeneration::current()?.to_kds_url();
 
     Ok(format!("https://kdsintf.amd.com/vcek/v1/{}/{}?blSPL={:02}&teeSPL={:02}&snpSPL={:02}&ucodeSPL={:02}",
-                         gen.to_string(), id, status.reported_tcb_version.bootloader,
+                         gen, id, status.reported_tcb_version.bootloader,
                          status.reported_tcb_version.tee,
                          status.reported_tcb_version.snp,
                          status.reported_tcb_version.microcode))

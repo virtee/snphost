@@ -89,6 +89,7 @@ pub fn cmd(export: Export) -> Result<()> {
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(name.clone())?;
 
         // Write out the contents of the certificate to the file.
