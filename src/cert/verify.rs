@@ -87,8 +87,8 @@ fn chain(verify: Verify) -> Result<Chain> {
 }
 
 fn cert(path: PathBuf, name: &str) -> Result<Certificate> {
-    Certificate::from_pem(
-        &read(path.clone()).context(format!("unable to read {}", path.display()))?,
+    Certificate::from_bytes(
+        &read(path.clone()).context(format!("Unable to read {}", path.display()))?,
     )
     .context(format!(
         "unable to parse {} certificate from {}",
