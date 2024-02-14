@@ -57,11 +57,18 @@ fn firmware() -> Result<Firmware> {
     Firmware::open().context("unable to open /dev/sev")
 }
 
-fn platform_status() -> Result<SnpPlatformStatus> {
+fn snp_platform_status() -> Result<SnpPlatformStatus> {
     firmware()?
         .snp_platform_status()
         .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
         .context("unable to retrieve SNP platform status")
+}
+
+fn sev_platform_status() -> Result<Status> {
+    firmware()?
+        .platform_status()
+        .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
+        .context("unable to retrieve SEV platform status")
 }
 
 fn cert_entries() -> Result<Vec<CertTableEntry>> {

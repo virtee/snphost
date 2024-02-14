@@ -6,7 +6,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{firmware, platform_status, processor::ProcessorGeneration};
+use crate::{firmware, processor::ProcessorGeneration, snp_platform_status};
 
 use anyhow::{Context, Result};
 use curl::easy::Easy;
@@ -73,7 +73,7 @@ pub fn vcek_url() -> Result<String> {
         .get_identifier()
         .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
         .context("error fetching identifier")?;
-    let status = platform_status()?;
+    let status = snp_platform_status()?;
     let gen = ProcessorGeneration::current()?.to_kds_url();
 
     Ok(format!("https://kdsintf.amd.com/vcek/v1/{}/{}?blSPL={:02}&teeSPL={:02}&snpSPL={:02}&ucodeSPL={:02}",
