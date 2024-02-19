@@ -24,7 +24,7 @@ is-it-maintained-open-issues = { repository = "virtee/snphost" }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.71"
+anyhow = "1.0.80"
 sev = { version = "1.2.0", features = [ "openssl" ] }
 env_logger = "0.10.1"
 structopt = "0.3.26"
