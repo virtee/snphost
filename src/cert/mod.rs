@@ -20,12 +20,16 @@ pub enum EncodingFormat {
     Pem,
 }
 
-impl ToString for EncodingFormat {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Der => "der".to_string(),
-            Self::Pem => "pem".to_string(),
-        }
+impl std::fmt::Display for EncodingFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Der => "der",
+                Self::Pem => "pem",
+            }
+        )
     }
 }
 

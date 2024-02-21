@@ -14,14 +14,6 @@ use std::{
     path::PathBuf,
 };
 
-fn identify_cert(buf: &[u8]) -> EncodingFormat {
-    const PEM_START: &[u8] = b"-----BEGIN CERTIFICATE-----";
-    match buf {
-        PEM_START => EncodingFormat::Pem,
-        _ => EncodingFormat::Der,
-    }
-}
-
 // Convert kernel formatted certs into user readable certificates
 fn cert_entries(cert_bytes: &mut [u8]) -> Result<Vec<CertTableEntry>> {
     let certs = CertTableEntry::vec_bytes_to_cert_table(cert_bytes)
@@ -42,7 +34,7 @@ pub struct Export {
 }
 
 pub fn cmd(export: Export) -> Result<()> {
-    let (mut ark, mut ask, mut vcek) = (false, false, false);
+    let (mut ark, mut ask, mut vcek, mut vlek) = (false, false, false, false);
 
     std::fs::create_dir_all(export.dir_path.clone()).context(format!(
         "unable to find or create directory {}",
@@ -78,6 +70,14 @@ pub fn cmd(export: Export) -> Result<()> {
 
                 "ask"
             }
+            CertType::VLEK => {
+                if vlek {
+                    bail!("multiple VLEKs found");
+                }
+                vlek = true;
+
+                "vlek"
+            }
             CertType::VCEK => {
                 if vcek {
                     bail!("multiple VCEKs found");
@@ -89,12 +89,7 @@ pub fn cmd(export: Export) -> Result<()> {
             _ => continue,
         };
 
-        // Attempt to identify the current format of the certificate in
-        // hypervisor memory and build a Certificate from it.
-        let certificate: Certificate = match identify_cert(&e.data[..27]) {
-            EncodingFormat::Der => Certificate::from_der(&e.data)?,
-            EncodingFormat::Pem => Certificate::from_pem(&e.data)?,
-        };
+        let certificate = Certificate::from_bytes(&e.data)?;
 
         // Verify the certificate is in the requested format.
         let formatted_data: Vec<u8> = match export.encoding_fmt {
@@ -107,7 +102,7 @@ pub fn cmd(export: Export) -> Result<()> {
             "{}/{}.{}",
             export.dir_path.display(),
             type_id,
-            export.encoding_fmt.to_string()
+            export.encoding_fmt
         );
 
         // Create the file for writing and open a file-handle.

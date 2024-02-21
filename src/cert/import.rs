@@ -9,7 +9,7 @@ use std::{
 
 use structopt::StructOpt;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 
 #[derive(StructOpt)]
 pub struct Import {
@@ -61,15 +61,19 @@ pub fn cmd(import: Import) -> Result<()> {
 }
 
 fn table_add_entry(de: DirEntry, table: &mut Vec<CertTableEntry>) -> Result<()> {
-    let cert_type = entry_get_type(&de.path())?;
-    let data = read(de.path())?;
+    match entry_get_type(&de.path())? {
+        Some(cert_type) => {
+            let data = read(de.path())?;
 
-    table.push(CertTableEntry::new(cert_type, data));
+            table.push(CertTableEntry::new(cert_type, data));
 
-    Ok(())
+            Ok(())
+        }
+        None => Ok(()),
+    }
 }
 
-fn entry_get_type(path: &PathBuf) -> Result<CertType> {
+fn entry_get_type(path: &PathBuf) -> Result<Option<CertType>> {
     let file_name_string = path
         .file_name()
         .context(format!("unable to read file at path {:?}", path))?
@@ -78,12 +82,10 @@ fn entry_get_type(path: &PathBuf) -> Result<CertType> {
 
     let subs: Vec<&str> = file_name_string.split('.').collect();
     match subs[0] {
-        "ark" => Ok(CertType::ARK),
-        "ask" => Ok(CertType::ASK),
-        "vcek" => Ok(CertType::VCEK),
-        _ => Err(anyhow!(
-            "unable to determine certificate type of path {:?}",
-            path
-        )),
+        "ark" => Ok(Some(CertType::ARK)),
+        "ask" => Ok(Some(CertType::ASK)),
+        "vlek" => Ok(Some(CertType::VLEK)),
+        "vcek" => Ok(Some(CertType::VCEK)),
+        _ => Ok(None),
     }
 }

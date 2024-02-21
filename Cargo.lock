@@ -508,7 +508,7 @@ dependencies = [
 [[package]]
 name = "sev"
 version = "3.0.0"
-source = "git+https://github.com/DGonzalezVillal/virtee-sev.git?branch=FixExAttestation#a200fdf720e9306f5a266c54935f63c5adabb996"
+source = "git+https://github.com/virtee/sev.git#ea7d0023846f63f8a8c804508883180289b3f80e"
 dependencies = [
  "bincode",
  "bitfield",

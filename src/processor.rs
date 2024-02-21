@@ -82,14 +82,17 @@ impl ProcessorGeneration {
     }
 }
 
-impl ToString for ProcessorGeneration {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Milan => "Milan",
-            Self::Genoa => "Genoa",
-            Self::Bergamo => "Bergamo",
-            Self::Siena => "Siena",
-        }
-        .to_string()
+impl std::fmt::Display for ProcessorGeneration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Milan => "Milan",
+                Self::Genoa => "Genoa",
+                Self::Bergamo => "Bergamo",
+                Self::Siena => "Siena",
+            }
+        )
     }
 }
