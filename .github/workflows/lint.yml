@@ -26,10 +26,10 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy
-          toolchain: nightly
+          toolchain: 1.70.0
           profile: minimal
           override: true
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: -- -D warnings
+          args: --all-targets -- -D clippy::all -D unused_imports -Dwarnings
