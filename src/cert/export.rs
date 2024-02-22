@@ -26,11 +26,11 @@ pub struct Export {
     #[structopt(about = "The format the certs will be encoded in (PEM or DER)")]
     pub encoding_fmt: EncodingFormat,
 
+    #[structopt(about = "File where the formatted certificates are stored.")]
+    pub cert_file: PathBuf,
+
     #[structopt(about = "The directory to write the certificates to")]
     pub dir_path: PathBuf,
-
-    #[structopt(about = "File where the formatted certificates are stored.")]
-    pub target_file: PathBuf,
 }
 
 pub fn cmd(export: Export) -> Result<()> {
@@ -42,7 +42,7 @@ pub fn cmd(export: Export) -> Result<()> {
     ))?;
 
     // Read the cert file with the kenrel formatted certs
-    let cert_file = File::open(export.target_file)?;
+    let cert_file = File::open(export.cert_file)?;
     let mut reader = BufReader::new(cert_file);
     let mut cert_bytes = Vec::new();
 

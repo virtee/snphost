@@ -27,32 +27,35 @@ GLOBAL OPTIONS
 COMMANDS
 --------
 *snphost export*::
-        usage: snphost export [der, pem] DIR-PATH
+        usage: snphost export [der, pem] CERT-FILE DIR-PATH
 
         This command exports the SEV-SNP certificate chain to the directory
-        provided by DIR-PATH. User must specify if the certificates currently
-        stored on the PSP are encoded in DER or PEM format. These are the only
-        two encoding formats supported in this tool.
+        provided by DIR-PATH. User has to provide the CERT-FILE where the certs
+        are currently stored in (in GHCB format). The user must also specify if 
+        they want the certs to be exported in PEM or DER certificate format. These are the only
+        two encoding formats supported in this tool. Currently only AMD chain certificates (ARK, ASK, VCEK and VLEK)
+        are supported for export.
 
   options:
         -h, --help      Show a help message.
 
 *snphost import*::
-	usage: snphost import DIR-PATH
+	usage: snphost import DIR-PATH CERT-FILE
 
-        This command imports serialized SEV-SNP certificates to the host's PSP.
-        Currently, only the ASK, ARK, and VCEK are able to be imported to the
-        PSP. Note that there are a few user requirements for this command to
-        work as intended.
+        This command imports serialized SEV-SNP certificates to the specified CERT-FILE.
+        This CERT-FILE can then be provided to QEMU to perform extended attestation on guest.
+        Currently, only the ASK, ARK, VCEK and VLEK are supported to serialize in the tool. 
+        Note that there are a few user requirements for this command to work as intended.
 
         All certificates must be located in the same directory with specific
         names:
                 ARK certificate => ark.{pem, der}
                 ASK certificate => ask.{pem, der}
                 VCEK certificate => vcek.{pem, der}
+                VLEK certificate => vlek.{pem, der}
 
         Not all certificates are needed in the directory, only the ones that a
-        user is looking to import to the PSP.
+        user is looking to import to the CERT-FILE.
 
   options:
         -h, --help      Show a help message
@@ -66,11 +69,49 @@ COMMANDS
  options:
     -h, --help          Show a help message
 
-*snphost reset*::
-	usage: snphost reset
+*snphost commit*::
+	usage: snphost commit
+
+        This command commits the current firmware and SNP platform config versions to the PSP.
+        This can't be undone and will not allow rollbacks to older versions.
+
+  options:
+        -h, --help      Show a help message.
+
+*snphost config set*::
+	usage: snphost config set BOOTLOADER TEE SNP-FW MICROCODE MASK-CHIP
+
+        This command allows the user to change the config of the SNP platform. The user can
+        provide the desired versions of the different TCB paramerters they would like to modify.
+        The command will change the reported values by the PSP. In order to have this changes commited, the 
+        user would have to use snphost commit. The user can also provide a new mask-chip value that 
+        will change the mask chip bit field values in the config.
+
+        Explanation of the different parmeters:
+        BOOTLOADER: Desired reported bootloader version
+        TEE: Desired reported PSP OS version
+        SNP-FW: Desired reported SNP Firmware level
+        MICROCODE: Desired reported patch level of all the cores
+        MASK-CHIP: Change the CHIP ID and CHIP KEY settings by changing the MASK-CHIP bits.
+                   Valid values range from 0-3 depending on what bits the user wants enabled.
+
+                   Bit[0] -> CHIP ID: Indicates that the CHIP_ID field in the attestation report
+                                      will always be 0.
+                   Bit[1] -> MASK KEY: Indicates that the VCEK is not used in attestation and guest
+                                       key derivation.
+
+                   For example, if the user would like MASK KEY to be enabled and CHIP ID disabled, 
+                   then the they would pass in a 2.
+
+  options:
+        -h, --help      Show a help message.
+
+*snphost config reset*::
+	usage: snphost config reset
 
         This command resets the SEV-SNP platform. This will clear all
-        persistent data managed by the platform.
+        persistent data managed by the platform and reset the platform configuration
+        to its last committed version.
 
   options:
         -h, --help      Show a help message.
@@ -91,10 +132,12 @@ COMMANDS
     -h, --help          Show a help message
 
 *snphost verify*::
-	usage: snphost verify ARK-PATH ASK-PATH VCEK-PATH
+	usage: snphost verify DIR-PATH
 
         This command verifies the full SEV-SNP/CA certificate chain.
-        Certificates must be encoded in PEM format.
+        It will use the ask,ark, and vek (vcek or vlek) certificates that are
+        stored in the provided directory. If both the vlek and vcek are present,
+        then the tool will use the vlek by default.
 
  options:
     -h, --help          Show a help message
