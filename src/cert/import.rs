@@ -14,44 +14,44 @@ use anyhow::{bail, Context, Result};
 #[derive(StructOpt)]
 pub struct Import {
     #[structopt(about = "The directory where the certificates are stored")]
-    pub cert_dir: PathBuf,
+    pub dir_path: PathBuf,
 
     #[structopt(about = "File where the formatted certificates will be stored.")]
-    pub target_file: PathBuf,
+    pub cert_file: PathBuf,
 }
 
 pub fn cmd(import: Import) -> Result<()> {
-    if !import.cert_dir.exists() {
-        bail!(format!("path {} does not exist", import.cert_dir.display()));
+    if !import.dir_path.exists() {
+        bail!(format!("path {} does not exist", import.dir_path.display()));
     }
 
     let mut table: Vec<CertTableEntry> = vec![];
 
     // For each cert in the directory convert into a kernel formatted cert and write into file
-    for dir_entry in read_dir(import.cert_dir.clone())? {
+    for dir_entry in read_dir(import.dir_path.clone())? {
         match dir_entry {
             Ok(de) => table_add_entry(de, &mut table)?,
             Err(_) => {
                 bail!(format!(
                     "unable to read directory at path {}",
-                    import.cert_dir.display()
+                    import.dir_path.display()
                 ))
             }
         }
     }
 
     let cert_bytes = CertTableEntry::cert_table_to_vec_bytes(&table)
-        .context("Failed to convert certificates to GHCB formatted bytes.")?;
+        .context("Failed to convert certificates to GHCB bytes specification.")?;
 
     // Write cert into directory
-    let mut file = if import.target_file.exists() {
+    let mut file = if import.cert_file.exists() {
         std::fs::OpenOptions::new()
             .write(true)
             .truncate(true)
-            .open(import.target_file)
+            .open(import.cert_file)
             .context("Unable to overwrite kernel cert file contents")?
     } else {
-        File::create(import.target_file).context("Unable to create kernel cert file")?
+        File::create(import.cert_file).context("Unable to create kernel cert file")?
     };
 
     file.write(&cert_bytes)

@@ -23,19 +23,19 @@ pub fn find_cert_in_dir(dir: &Path, cert: &str) -> Result<PathBuf, anyhow::Error
 #[derive(StructOpt)]
 pub struct Verify {
     #[structopt(help = "Path to directory containing certificates.")]
-    pub certs_dir: PathBuf,
+    pub dir_path: PathBuf,
 }
 
 pub fn cmd(verify: Verify, quiet: bool) -> Result<()> {
-    let ark_path = find_cert_in_dir(&verify.certs_dir, "ark")?;
-    let ask_path = find_cert_in_dir(&verify.certs_dir, "ask")?;
+    let ark_path = find_cert_in_dir(&verify.dir_path, "ark")?;
+    let ask_path = find_cert_in_dir(&verify.dir_path, "ask")?;
     let mut vek_type: &str = "VCEK";
-    let vek_path = match find_cert_in_dir(&verify.certs_dir, "vlek") {
+    let vek_path = match find_cert_in_dir(&verify.dir_path, "vlek") {
         Ok(vlek_path) => {
             vek_type = "VLEK";
             vlek_path
         }
-        Err(_) => find_cert_in_dir(&verify.certs_dir, "vcek")?,
+        Err(_) => find_cert_in_dir(&verify.dir_path, "vcek")?,
     };
 
     // Get a cert chain from directory

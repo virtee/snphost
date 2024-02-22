@@ -38,6 +38,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "base64"
+version = "0.21.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
+
+[[package]]
 name = "bincode"
 version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -508,8 +514,10 @@ dependencies = [
 [[package]]
 name = "sev"
 version = "3.0.0"
-source = "git+https://github.com/virtee/sev.git#ea7d0023846f63f8a8c804508883180289b3f80e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "210c2ddcae6f3ca89e9f78449479e4e2f0d8b9ea68e4415e4d5daeb3e6fcedb8"
 dependencies = [
+ "base64",
  "bincode",
  "bitfield",
  "bitflags 1.3.2",
@@ -530,7 +538,7 @@ dependencies = [
 
 [[package]]
 name = "snphost"
-version = "0.2.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "colorful",
