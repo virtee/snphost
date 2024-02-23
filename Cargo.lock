@@ -38,6 +38,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "base64"
+version = "0.21.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
+
+[[package]]
 name = "bincode"
 version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -63,6 +69,12 @@ name = "bitflags"
 version = "2.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed570934406eb16438a4e976b1b4500774099c13b8cb96eec99f620f05090ddf"
+
+[[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "cc"
@@ -244,27 +256,6 @@ dependencies = [
  "hermit-abi 0.3.6",
  "libc",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "kvm-bindings"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "081fbd8164229a990fbf24a1f35d287740db110c2b5d42addf460165f1b0e032"
-dependencies = [
- "vmm-sys-util",
-]
-
-[[package]]
-name = "kvm-ioctls"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9002dff009755414f22b962ec6ae6980b07d6d8b06e5297b1062019d72bd6a8c"
-dependencies = [
- "bitflags 2.4.2",
- "kvm-bindings",
- "libc",
- "vmm-sys-util",
 ]
 
 [[package]]
@@ -522,18 +513,21 @@ dependencies = [
 
 [[package]]
 name = "sev"
-version = "1.2.1"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fd749a01c88a51ac718b59fe571177b31e478dfe059267977042477a0531224"
+checksum = "210c2ddcae6f3ca89e9f78449479e4e2f0d8b9ea68e4415e4d5daeb3e6fcedb8"
 dependencies = [
+ "base64",
  "bincode",
  "bitfield",
  "bitflags 1.3.2",
+ "byteorder",
  "codicon",
  "dirs",
  "hex",
  "iocuddle",
- "kvm-ioctls",
+ "lazy_static",
+ "libc",
  "openssl",
  "serde",
  "serde-big-array",
@@ -706,16 +700,6 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
-
-[[package]]
-name = "vmm-sys-util"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d1435039746e20da4f8d507a72ee1b916f7b4b05af7a91c093d2c6561934ede"
-dependencies = [
- "bitflags 1.3.2",
- "libc",
-]
 
 [[package]]
 name = "wasi"
