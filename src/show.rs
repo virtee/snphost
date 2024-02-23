@@ -23,7 +23,7 @@ pub enum Show {
 }
 
 pub fn cmd(show: Show) -> Result<()> {
-    let status = platform_status()?;
+    let status = snp_platform_status()?;
 
     match show {
         Show::Guests => println!("{}", status.guest_count),

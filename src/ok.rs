@@ -13,6 +13,8 @@ use std::{
 
 use colorful::*;
 
+use msru::{Accessor, Msr};
+
 type TestFn = dyn Fn() -> TestResult;
 
 // SEV generation-specific bitmasks.
@@ -54,6 +56,40 @@ impl fmt::Display for TestState {
             TestState::Fail => format!("{}", "FAIL".red()),
         };
 
+        write!(f, "{}", s)
+    }
+}
+
+enum SnpStatusTest {
+    Tcb,
+    Rmp,
+    Snp,
+}
+
+enum SevStatusTests {
+    Sev,
+    Firmware,
+    Seves,
+}
+
+impl fmt::Display for SnpStatusTest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            SnpStatusTest::Tcb => "Comparing TCB values",
+            SnpStatusTest::Rmp => "RMP INIT",
+            SnpStatusTest::Snp => "SNP INIT",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl fmt::Display for SevStatusTests {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            SevStatusTests::Sev => "SEV INIT",
+            SevStatusTests::Firmware => "SEV Firmware Version",
+            SevStatusTests::Seves => "SEV-ES INIT",
+        };
         write!(f, "{}", s)
     }
 }
@@ -134,7 +170,12 @@ fn collect_tests() -> Vec<Test> {
                             mesg: None,
                         }
                     }),
-                    sub: vec![],
+                    sub: vec![Test {
+                        name: "SME",
+                        gen_mask: SEV_MASK,
+                        run: Box::new(sme_test),
+                        sub: vec![],
+                    }],
                 },
                 Test {
                     name: "Secure Encrypted Virtualization (SEV)",
@@ -173,6 +214,17 @@ fn collect_tests() -> Vec<Test> {
                                     mesg: None,
                                 }
                             }),
+                            sub: vec![Test {
+                                name: "SEV-ES INIT",
+                                gen_mask: ES_MASK,
+                                run: Box::new(|| sev_ioctl(SevStatusTests::Seves)),
+                                sub: vec![],
+                            }],
+                        },
+                        Test {
+                            name: "SEV INIT",
+                            gen_mask: SNP_MASK,
+                            run: Box::new(|| sev_ioctl(SevStatusTests::Sev)),
                             sub: vec![],
                         },
                         Test {
@@ -193,40 +245,60 @@ fn collect_tests() -> Vec<Test> {
                                     mesg: None,
                                 }
                             }),
-                            sub: vec![Test {
-                                name: "VM Permission Levels",
-                                gen_mask: SNP_MASK,
-                                run: Box::new(|| {
-                                    let res = unsafe { x86_64::__cpuid(0x8000_001f) };
-
-                                    let stat = if (res.eax & 0x1 << 5) != 0 {
-                                        TestState::Pass
-                                    } else {
-                                        TestState::Fail
-                                    };
-
-                                    TestResult {
-                                        name: "VM Permission Levels".to_string(),
-                                        stat,
-                                        mesg: None,
-                                    }
-                                }),
-                                sub: vec![Test {
-                                    name: "Number of VMPLs",
+                            sub: vec![
+                                Test {
+                                    name: "VM Permission Levels",
                                     gen_mask: SNP_MASK,
                                     run: Box::new(|| {
                                         let res = unsafe { x86_64::__cpuid(0x8000_001f) };
-                                        let num_vmpls = (res.ebx & 0xF000) >> 12;
+
+                                        let stat = if (res.eax & 0x1 << 5) != 0 {
+                                            TestState::Pass
+                                        } else {
+                                            TestState::Fail
+                                        };
 
                                         TestResult {
-                                            name: "Number of VMPLs".to_string(),
-                                            stat: TestState::Pass,
-                                            mesg: Some(format!("{}", num_vmpls)),
+                                            name: "VM Permission Levels".to_string(),
+                                            stat,
+                                            mesg: None,
                                         }
                                     }),
+                                    sub: vec![Test {
+                                        name: "Number of VMPLs",
+                                        gen_mask: SNP_MASK,
+                                        run: Box::new(|| {
+                                            let res = unsafe { x86_64::__cpuid(0x8000_001f) };
+                                            let num_vmpls = (res.ebx & 0xF000) >> 12;
+
+                                            TestResult {
+                                                name: "Number of VMPLs".to_string(),
+                                                stat: TestState::Pass,
+                                                mesg: Some(format!("{}", num_vmpls)),
+                                            }
+                                        }),
+                                        sub: vec![],
+                                    }],
+                                },
+                                Test {
+                                    name: "SEV-SNP",
+                                    gen_mask: SNP_MASK,
+                                    run: Box::new(snp_test),
                                     sub: vec![],
-                                }],
-                            }],
+                                },
+                                Test {
+                                    name: "SEV Firmware Version",
+                                    gen_mask: SNP_MASK,
+                                    run: Box::new(|| sev_ioctl(SevStatusTests::Firmware)),
+                                    sub: vec![],
+                                },
+                                Test {
+                                    name: "SNP INIT",
+                                    gen_mask: SNP_MASK,
+                                    run: Box::new(|| snp_ioctl(SnpStatusTest::Snp)),
+                                    sub: vec![],
+                                },
+                            ],
                         },
                         Test {
                             name: "Physical address bit reduction",
@@ -369,6 +441,24 @@ fn collect_tests() -> Vec<Test> {
             name: "memlock limit",
             gen_mask: SEV_MASK,
             run: Box::new(memlock_rlimit),
+            sub: vec![],
+        },
+        Test {
+            name: "Read RMP tables",
+            gen_mask: SNP_MASK,
+            run: Box::new(get_rmp_address),
+            sub: vec![],
+        },
+        Test {
+            name: "RMP INIT",
+            gen_mask: SNP_MASK,
+            run: Box::new(|| snp_ioctl(SnpStatusTest::Rmp)),
+            sub: vec![],
+        },
+        Test {
+            name: "Compare TCB values",
+            gen_mask: SNP_MASK,
+            run: Box::new(|| snp_ioctl(SnpStatusTest::Tcb)),
             sub: vec![],
         },
     ];
@@ -603,5 +693,235 @@ fn memlock_rlimit() -> TestResult {
         name: "Memlock resource limit".to_string(),
         stat,
         mesg: Some(mesg),
+    }
+}
+
+fn msr_bit_read(reg: u32, cpu: u16) -> Result<u64, anyhow::Error> {
+    let mut msr = Msr::new(reg, cpu).context("Error Reading MSR")?;
+    let raw_value = msr.read()?;
+    Ok(raw_value)
+}
+
+fn sme_test() -> TestResult {
+    let raw_value = match msr_bit_read(0xC0010010, 0) {
+        Ok(raw) => raw,
+        Err(e) => {
+            return TestResult {
+                name: "SME".to_string(),
+                stat: TestState::Fail,
+                mesg: format!("MSR read failed: {}", e).into(),
+            }
+        }
+    };
+    let (testres, mesg) = match raw_value >> 23 & 1 {
+        1 => (TestState::Pass, "Enabled in MSR"),
+        0 => (TestState::Fail, "Disabled in MSR"),
+        _ => unreachable!(),
+    };
+    TestResult {
+        name: "SME".to_string(),
+        stat: testres,
+        mesg: Some(mesg.to_string()),
+    }
+}
+
+fn snp_test() -> TestResult {
+    let raw_value = match msr_bit_read(0xC0010010, 0) {
+        Ok(raw) => raw,
+        Err(e) => {
+            return TestResult {
+                name: "SNP".to_string(),
+                stat: TestState::Fail,
+                mesg: format!("MSR read failed: {}", e).into(),
+            }
+        }
+    };
+    let (testres, mesg) = match raw_value >> 24 & 1 {
+        1 => (TestState::Pass, "Enabled in MSR"),
+        0 => (TestState::Fail, "Disabled in MSR"),
+        _ => unreachable!(),
+    };
+    TestResult {
+        name: "SNP".to_string(),
+        stat: testres,
+        mesg: Some(mesg.to_string()),
+    }
+}
+
+fn get_rmp_address() -> TestResult {
+    let rmp_base = match msr_bit_read(0xC0010132, 0) {
+        Ok(raw) => raw,
+        Err(e) => {
+            return TestResult {
+                name: "Reading RMP table".to_string(),
+                stat: TestState::Fail,
+                mesg: format!("Failed to read the desired MSR: {}", e).into(),
+            }
+        }
+    };
+    let rmp_end = match msr_bit_read(0xC0010133, 0) {
+        Ok(raw) => raw,
+        Err(e) => {
+            return TestResult {
+                name: "Reading RMP table".to_string(),
+                stat: TestState::Fail,
+                mesg: format!("Failed to read the desired MSR: {}", e).into(),
+            }
+        }
+    };
+    if rmp_base == 0 || rmp_end == 0 {
+        TestResult {
+            name: "Reading RMP table".to_string(),
+            stat: TestState::Fail,
+            mesg: Some("RMP table was not read successfully".into()),
+        }
+    } else {
+        TestResult {
+            name: "RMP table addresses".to_string(),
+            stat: TestState::Pass,
+            mesg: format!("Addresses: {} - {}", rmp_base, rmp_end).into(),
+        }
+    }
+}
+
+fn snp_ioctl(test: SnpStatusTest) -> TestResult {
+    let status = match snp_platform_status() {
+        Ok(stat) => stat,
+        Err(e) => {
+            return TestResult {
+                name: test.to_string(),
+                stat: TestState::Fail,
+                mesg: Some(format!("Failed to get SNP Platform status {e}")),
+            }
+        }
+    };
+
+    match test {
+        SnpStatusTest::Tcb => {
+            if status.platform_tcb_version == status.reported_tcb_version {
+                TestResult{
+                            name: format!("{}", SnpStatusTest::Tcb),
+                            stat: TestState::Pass,
+                            mesg: format!("TCB versions match \n\n Platform TCB version: {} \n Reported TCB version: {}", 
+                                        status.platform_tcb_version, status.reported_tcb_version).into()
+                        }
+            } else {
+                TestResult {
+                    name: format!("{}", SnpStatusTest::Tcb),
+                    stat: TestState::Fail,
+                    mesg: format!("The TCB versions did NOT match \n\n Platform TCB version: {} \n Reported TCB version: {}", 
+                                    status.platform_tcb_version, status.reported_tcb_version).into(),
+                }
+            }
+        }
+        SnpStatusTest::Rmp => {
+            if status.is_rmp_init == 1 {
+                TestResult {
+                    name: format!("{}", SnpStatusTest::Rmp),
+                    stat: TestState::Pass,
+                    mesg: Some("RMP is INIT".to_string()),
+                }
+            } else {
+                TestResult {
+                    name: format!("{}", SnpStatusTest::Rmp),
+                    stat: TestState::Fail,
+                    mesg: Some("RMP is UNINIT".to_string()),
+                }
+            }
+        }
+        SnpStatusTest::Snp => {
+            if status.state == 1 {
+                TestResult {
+                    name: format!("{}", SnpStatusTest::Snp),
+                    stat: TestState::Pass,
+                    mesg: Some("SNP is INIT".to_string()),
+                }
+            } else {
+                TestResult {
+                    name: format!("{}", SnpStatusTest::Snp),
+                    stat: TestState::Fail,
+                    mesg: Some("SNP is UNINIT".to_string()),
+                }
+            }
+        }
+    }
+}
+
+fn sev_ioctl(test: SevStatusTests) -> TestResult {
+    let status = match sev_platform_status() {
+        Ok(stat) => stat,
+        Err(e) => {
+            return TestResult {
+                name: test.to_string(),
+                stat: TestState::Fail,
+                mesg: Some(format!("Failed to get SEV Platform Status {e}")),
+            }
+        }
+    };
+    match test {
+        SevStatusTests::Sev => {
+            if status.state == State::Working {
+                TestResult {
+                    name: format!("{}", SevStatusTests::Sev),
+                    stat: TestState::Pass,
+                    mesg: Some("SEV is INIT and currently running a guest".to_string()),
+                }
+            } else if status.state == State::Initialized {
+                TestResult {
+                    name: format!("{}", SevStatusTests::Sev),
+                    stat: TestState::Pass,
+                    mesg: Some("SEV is INIT, but not currently running a guest".to_string()),
+                }
+            } else {
+                TestResult {
+                    name: format!("{}", SevStatusTests::Sev),
+                    stat: TestState::Fail,
+                    mesg: Some("SEV is UNINIT".to_string()),
+                }
+            }
+        }
+
+        SevStatusTests::Firmware => {
+            if status.build.version == 0.into() {
+                TestResult {
+                    name: format!("{}", SevStatusTests::Firmware),
+                    stat: TestState::Fail,
+                    mesg: Some(format!(
+                        "Invalid Firmware version: {}",
+                        status.build.version
+                    )),
+                }
+            } else if status.build.version.minor < 51 {
+                TestResult {
+                    name: format!("{}", SevStatusTests::Firmware),
+                    stat: TestState::Fail,
+                    mesg: format!(
+                        "SEV firmware version needs to be at least 1.51, 
+                            current firmware version: {}",
+                        status.build.version
+                    )
+                    .into(),
+                }
+            } else {
+                TestResult {
+                    name: format!("{}", SevStatusTests::Firmware),
+                    stat: TestState::Pass,
+                    mesg: format!("Sev firmware version: {}", status.build.version).into(),
+                }
+            }
+        }
+
+        SevStatusTests::Seves => {
+            let (res, mesg) = match status.flags.bits() >> 8 & 1 {
+                1 => (TestState::Pass, "Enabled"),
+                0 => (TestState::Fail, "Disabled"),
+                _ => unreachable!(),
+            };
+            TestResult {
+                name: format!("{}", SevStatusTests::Seves),
+                stat: res,
+                mesg: Some(mesg.to_string()),
+            }
+        }
     }
 }
