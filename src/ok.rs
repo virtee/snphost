@@ -15,8 +15,6 @@ use colorful::*;
 
 use msru::{Accessor, Msr};
 
-use crate::{sev_platform_status, snp_platform_status};
-
 type TestFn = dyn Fn() -> TestResult;
 
 // SEV generation-specific bitmasks.
