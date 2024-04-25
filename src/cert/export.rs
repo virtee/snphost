@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use super::EncodingFormat;
+use super::*;
 use anyhow::{bail, Context, Result};
 use sev::{
     certs::snp::Certificate,
     firmware::host::{CertTableEntry, CertType},
 };
-use structopt::StructOpt;
 
 use std::{
     fs::File,
@@ -21,15 +20,18 @@ fn cert_entries(cert_bytes: &mut [u8]) -> Result<Vec<CertTableEntry>> {
     Ok(certs)
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct Export {
-    #[structopt(about = "The format the certs will be encoded in (PEM or DER)")]
+    /// The format the certs will be encoded in (PEM or DER)
+    #[arg(value_name = "encoding", required = true)]
     pub encoding_fmt: EncodingFormat,
 
-    #[structopt(about = "File where the formatted certificates are stored.")]
+    /// File where the formatted certificates are stored.
+    #[arg(value_name = "cert-file", required = true)]
     pub cert_file: PathBuf,
 
-    #[structopt(about = "The directory to write the certificates to")]
+    /// The directory to write the certificates to
+    #[arg(value_name = "dir-path", required = true)]
     pub dir_path: PathBuf,
 }
 

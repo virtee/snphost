@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use super::*;
+
 use std::{
     fs::{create_dir_all, OpenOptions},
     io::Write,
@@ -11,16 +13,15 @@ use crate::{firmware, processor::ProcessorGeneration, snp_platform_status};
 use anyhow::{Context, Result};
 use curl::easy::Easy;
 use sev::certs::snp::Certificate;
-use structopt::StructOpt;
 
-use super::super::EncodingFormat;
-
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct Vcek {
-    #[structopt(about = "The format in which to encode the certificate")]
+    /// The format in which to encode the certificate
+    #[arg(value_name = "encoding", required = true)]
     encoding_fmt: EncodingFormat,
 
-    #[structopt(about = "The path of a directory to store the encoded VCEK in")]
+    /// The path of a directory to store the encoded VCEK in
+    #[arg(value_name = "path", required = true)]
     path: PathBuf,
 }
 

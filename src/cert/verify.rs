@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use super::*;
+
 use anyhow::{anyhow, Context, Result};
 use std::{
     fs::read,
@@ -8,7 +10,6 @@ use std::{
 
 use colorful::*;
 use sev::certs::snp::{ca, Certificate, Chain, Verifiable};
-use structopt::StructOpt;
 
 pub fn find_cert_in_dir(dir: &Path, cert: &str) -> Result<PathBuf, anyhow::Error> {
     if dir.join(format!("{cert}.pem")).exists() {
@@ -20,9 +21,10 @@ pub fn find_cert_in_dir(dir: &Path, cert: &str) -> Result<PathBuf, anyhow::Error
     }
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct Verify {
-    #[structopt(help = "Path to directory containing certificates.")]
+    /// Path to directory containing certificates.
+    #[arg(value_name = "dir-path", required = true)]
     pub dir_path: PathBuf,
 }
 

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use super::*;
 use anyhow::{Context, Result};
 use curl::easy::Easy;
 use sev::certs::snp::{ca::Chain, Certificate};
@@ -8,17 +9,18 @@ use std::{
     io::Write,
     path::PathBuf,
 };
-use structopt::StructOpt;
 
 use super::super::EncodingFormat;
 use crate::processor::ProcessorGeneration;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct Ca {
-    #[structopt(about = "The format the certs are encoded in (PEM or DER)")]
+    /// The format the certs are encoded in.
+    #[arg(value_name = "encoding", required = true)]
     pub encoding_fmt: EncodingFormat,
 
-    #[structopt(about = "The directory to write the certificates to")]
+    /// The directory to write the certificates to
+    #[arg(value_name = "dir-path", required = true)]
     pub dir_path: PathBuf,
 }
 

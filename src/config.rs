@@ -3,12 +3,13 @@
 use super::*;
 
 // Different config commands
-#[derive(StructOpt)]
+#[derive(Subcommand)]
 pub enum ConfigCmd {
-    #[structopt(about = "Change the Platform Config (TCB and Mask chip) to the provided values")]
+    /// Change the Platform Config (TCB and Mask chip) to the provided values
     Set(set::Args),
 
-    #[structopt(about = "Reset the SEV-SNP Config to the last comitted version")]
+    /// Reset the SEV-SNP Config to the last comitted version
+    #[command(subcommand)]
     Reset,
 }
 
@@ -22,23 +23,27 @@ pub fn cmd(cmd: ConfigCmd) -> Result<()> {
 mod set {
     use super::*;
 
-    #[derive(StructOpt)]
+    #[derive(Parser)]
     pub struct Args {
-        #[structopt(help = "Bootloader: Bootloader version")]
+        /// Bootloader version
+        /// (Unsigned 8-bit Integer)
+        #[arg(value_name = "bootloader", required = true)]
         pub bootloader: u8,
 
-        #[structopt(help = "TEE: PSP OS version")]
+        /// PSP OS version (Unsigned 8-bit Integer)
+        #[arg(value_name = "tee", required = true)]
         pub tee: u8,
 
-        #[structopt(help = "SNP FIRMWARE: Version of the SNP firmware")]
+        /// Version of the SNP firmware (Unsigned 8-bit Integer)
+        #[arg(value_name = "snp-fw", required = true)]
         pub snp_fw: u8,
 
-        #[structopt(help = "MICROCODE: Patch level of all the cores")]
+        /// Microcode Patch level of all the cores (Unsigned 8-bit Integer)
+        #[arg(value_name = "microcode", required = true)]
         pub microcode: u8,
 
-        #[structopt(
-            help = "MASK CHIP: Change mask chip bit field values by providing decimal representation of desired change (0-3). Bit[0]: CHIP_ID, Bit[1]: CHIP_KEY. Both are disabled by default"
-        )]
+        /// Change mask chip bit field (Unsigned 32-bit Integer) values by providing decimal representation of desired change (0-3). Bit[0]: CHIP_ID, Bit[1]: CHIP_KEY. Both are disabled by default
+        #[arg(value_name = "mask-chip", required = true)]
         mask_chip: u32,
     }
 

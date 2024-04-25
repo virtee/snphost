@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use super::*;
 use crate::processor::ProcessorGeneration;
 use anyhow::{Context, Result};
 use curl::easy::Easy;
@@ -8,7 +9,6 @@ use std::{
     io::Write,
     path::PathBuf,
 };
-use structopt::StructOpt;
 
 fn crl_url() -> Result<String> {
     Ok(format!(
@@ -17,9 +17,10 @@ fn crl_url() -> Result<String> {
     ))
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct Crl {
-    #[structopt(about = "The directory to write the CRL to")]
+    /// The directory to write the CRL to
+    #[arg(value_name = "dir-path", required = true)]
     pub dir_path: PathBuf,
 }
 

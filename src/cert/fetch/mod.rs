@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use super::*;
+
 pub(crate) mod ca;
 pub(crate) mod crl;
 pub(crate) mod vcek;
 use anyhow::Result;
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
+#[derive(Subcommand)]
 pub enum Fetch {
-    #[structopt(about = "Fetches the VCEK from the KDS")]
+    /// Fetches the VCEK from the KDS
     Vcek(vcek::Vcek),
 
-    #[structopt(about = "Fetches the CA from the KDS")]
+    /// Fetches the CA from the KDS
     Ca(ca::Ca),
 
-    #[structopt(about = "Fetches the CRL from the KDS")]
+    /// Fetches the CRL from the KDS
     Crl(crl::Crl),
 }
 
