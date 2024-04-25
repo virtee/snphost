@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use super::*;
+
 pub(crate) mod export;
 pub(crate) mod fetch;
 pub(crate) mod import;
@@ -7,16 +9,14 @@ pub(crate) mod verify;
 
 use std::str::FromStr;
 
-use structopt::StructOpt;
-
 use anyhow::{anyhow, Error};
 
-#[derive(StructOpt)]
+#[derive(ValueEnum, Copy, Clone)]
 pub enum EncodingFormat {
-    #[structopt(about = "Certificates are encoded in DER format")]
+    /// Certificates are encoded in DER format
     Der,
 
-    #[structopt(about = "Certificates are encoded in PEM format")]
+    /// Certificates are encoded in PEM format
     Pem,
 }
 

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use super::*;
+
 use sev::firmware::host::{CertTableEntry, CertType};
 use std::{
     fs::{read, read_dir, DirEntry, File},
@@ -7,16 +9,16 @@ use std::{
     path::PathBuf,
 };
 
-use structopt::StructOpt;
-
 use anyhow::{bail, Context, Result};
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct Import {
-    #[structopt(about = "The directory where the certificates are stored")]
+    /// The directory where the certificates are stored
+    #[arg(value_name = "dir-path", required = true)]
     pub dir_path: PathBuf,
 
-    #[structopt(about = "File where the formatted certificates will be stored.")]
+    /// File where the formatted certificates will be stored.
+    #[arg(value_name = "cert-file", required = true)]
     pub cert_file: PathBuf,
 }
 

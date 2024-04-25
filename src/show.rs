@@ -4,21 +4,21 @@ use super::*;
 
 use cert::fetch::vcek::vcek_url;
 
-#[derive(StructOpt)]
+#[derive(Subcommand)]
 pub enum Show {
-    #[structopt(about = "Show the current number of guests")]
+    /// Show the current number of guests
     Guests,
 
-    #[structopt(about = "Show the platform identifier")]
+    /// Show the platform identifier
     Identifier,
 
-    #[structopt(about = "Show the current platform and reported TCB version")]
+    /// Show the current platform and reported TCB version
     Tcb,
 
-    #[structopt(about = "Show the VCEK DER download URL")]
+    /// Show the VCEK DER download URL
     VcekUrl,
 
-    #[structopt(about = "Show the platform's firmware version")]
+    /// Show the platform's firmware version
     Version,
 }
 

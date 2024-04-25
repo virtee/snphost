@@ -12,49 +12,51 @@ mod ok;
 use cert::{export, fetch, import, verify};
 
 use anyhow::{Context, Result};
+use clap::{arg, Parser, Subcommand, ValueEnum};
 use sev::firmware::host::*;
-use structopt::StructOpt;
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
-
-#[derive(StructOpt)]
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
 struct SnpHost {
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     pub cmd: SnpHostCmd,
 
-    #[structopt(short, long, about = "Don't print anything to the console")]
+    /// Don't print anything to the console
+    #[arg(short, long, default_value_t = false)]
     pub quiet: bool,
 }
 
 #[allow(clippy::large_enum_variant)]
-#[derive(StructOpt)]
-#[structopt(author = AUTHORS, version = VERSION, about = "Utilities for managing the SEV-SNP environment")]
+/// Utilities for managing the SEV-SNP environment
+#[derive(Subcommand)]
 enum SnpHostCmd {
-    #[structopt(about = "Display information about the SEV-SNP platform")]
+    /// Display information about the SEV-SNP platform
+    #[command(subcommand)]
     Show(show::Show),
 
-    #[structopt(
-        about = "Export a certificate chain from a kernel format file to a given directory"
-    )]
+    /// Export a certificate chain from a kernel format file to a given directory
     Export(export::Export),
 
-    #[structopt(about = "Import a certificate chain to a file")]
+    /// Import a certificate chain to a file
     Import(import::Import),
 
-    #[structopt(about = "Probe system for SEV-SNP support")]
+    /// Probe system for SEV-SNP support
+    #[command(subcommand)]
     Ok,
 
-    #[structopt(about = "Modify the SNP configuration")]
+    /// Modify the SNP configuration
+    #[command(subcommand)]
     Config(config::ConfigCmd),
 
-    #[structopt(about = "Verify a certificate chain")]
+    /// Verify a certificate chain
     Verify(verify::Verify),
 
-    #[structopt(about = "Retrieve content from the AMD Key Distribution Server (KDS)")]
+    /// Retrieve content from the AMD Key Distribution Server (KDS)
+    #[command(subcommand)]
     Fetch(fetch::Fetch),
 
-    #[structopt(about = "Commit current firmware and TCB versions to PSP")]
+    /// Commit current firmware and TCB versions to PSP
+    #[command(subcommand)]
     Commit,
 }
 
@@ -88,7 +90,7 @@ fn sev_platform_status() -> Result<Status> {
 fn main() -> Result<()> {
     env_logger::init();
 
-    let snphost = SnpHost::from_args();
+    let snphost = SnpHost::parse();
     let result = match snphost.cmd {
         SnpHostCmd::Show(show) => show::cmd(show),
         SnpHostCmd::Export(export) => export::cmd(export),
