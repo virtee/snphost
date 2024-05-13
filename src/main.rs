@@ -41,7 +41,6 @@ enum SnpHostCmd {
     Import(import::Import),
 
     /// Probe system for SEV-SNP support
-    #[command(subcommand)]
     Ok,
 
     /// Modify the SNP configuration
@@ -56,7 +55,6 @@ enum SnpHostCmd {
     Fetch(fetch::Fetch),
 
     /// Commit current firmware and TCB versions to PSP
-    #[command(subcommand)]
     Commit,
 }
 
