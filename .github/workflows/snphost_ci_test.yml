@@ -1,0 +1,44 @@
+name: snphost CI PR test
+
+on:
+  pull_request_target:
+    types:
+      - reopened
+      - opened
+      - edited
+      - synchronize
+  workflow_dispatch:
+
+jobs:
+  snp_host_tests:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Verify if SNP is enabled on the host
+        run: |
+              verify_snp_host() {
+              if ! sudo dmesg | grep -i "SEV-SNP enabled" 2>&1 >/dev/null; then
+                echo -e "SEV-SNP not enabled on the host. Please follow these steps to enable:\n\
+                $(echo "${AMDSEV_URL}" | sed 's|\.git$||g')/tree/${AMDSEV_DEFAULT_BRANCH}#prepare-host"
+                return 1
+              fi
+              }
+              verify_snp_host
+
+      - name: snphost tool PR test on self-hosted runner
+        run: |
+              rm -rf ~/snphost
+              cd ~/
+              git clone https://github.com/virtee/snphost.git
+              cd ~/snphost
+
+              # Checkout PR branch
+              if [ ${{ github.event_name }} == "pull_request_target" ]; then
+                git fetch origin pull/${{ github.event.pull_request.number }}/head:${{ github.head_ref }}
+                git switch ${{ github.head_ref }}
+              fi
+
+              # Perform cargo test on the host
+              cargo test
