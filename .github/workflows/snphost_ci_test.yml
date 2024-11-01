@@ -8,7 +8,12 @@ on:
       - edited
       - synchronize
   workflow_dispatch:
-
+    inputs:
+      pull_request_number:
+        description: 'Specify the pull request number'
+      pull_request_branch:
+        description: 'Pull request branch'
+        
 jobs:
   snp_host_tests:
     runs-on: self-hosted
@@ -34,11 +39,17 @@ jobs:
               git clone https://github.com/virtee/snphost.git
               cd ~/snphost
 
-              # Checkout PR branch
+              # Checkout PR branch for PR GH event
               if [ ${{ github.event_name }} == "pull_request_target" ]; then
                 git fetch origin pull/${{ github.event.pull_request.number }}/head:${{ github.head_ref }}
                 git switch ${{ github.head_ref }}
               fi
 
+              # Checkout PR branch when manual PR parameters are user-given.
+              if [ ${{ github.event_name }} == "workflow_dispatch" ]; then
+                git fetch origin pull/${{ github.event.inputs.pull_request_number }}/head:${{ github.event.inputs.pull_request_branch }}
+                git switch ${{ github.event.inputs.pull_request_branch }}
+              fi
+              
               # Perform cargo test on the host
               cargo test
