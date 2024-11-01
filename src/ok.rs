@@ -2,6 +2,8 @@
 
 use super::*;
 
+use cli::{sev_platform_status, snp_platform_status};
+
 use std::{
     arch::x86_64,
     fmt,

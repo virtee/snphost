@@ -2,6 +2,8 @@
 
 use super::*;
 
+use cli::firmware;
+
 // Different config commands
 #[derive(Subcommand)]
 pub enum ConfigCmd {

@@ -3,6 +3,7 @@
 use super::*;
 
 use cert::fetch::vcek::vcek_url;
+use cli::{firmware, snp_platform_status};
 
 #[derive(Subcommand)]
 pub enum Show {

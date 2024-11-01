@@ -8,7 +8,10 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{firmware, processor::ProcessorGeneration, snp_platform_status};
+use crate::{
+    cli::{firmware, snp_platform_status},
+    processor::ProcessorGeneration,
+};
 
 use anyhow::{Context, Result};
 use curl::easy::Easy;
