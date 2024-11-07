@@ -475,7 +475,7 @@ pub fn cmd(quiet: bool) -> Result<()> {
         Ok(())
     } else {
         Err(anyhow::anyhow!(
-            "One or more tests in sevctl-ok reported a failure"
+            "One or more tests in snphost ok reported a failure"
         ))
     }
 }
