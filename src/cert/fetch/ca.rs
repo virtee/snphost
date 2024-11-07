@@ -3,7 +3,7 @@
 use super::*;
 use anyhow::{Context, Result};
 use curl::easy::Easy;
-use sev::certs::snp::{ca::Chain, Certificate};
+use sev::certs::snp::ca::Chain;
 use std::{
     fs::{create_dir_all, OpenOptions},
     io::Write,
@@ -76,10 +76,7 @@ pub fn fetch(url: &str) -> Result<Chain> {
     transfer.perform()?;
     drop(transfer);
 
-    Ok(Chain {
-        ask: Certificate::from_pem(&buf[..2325])?,
-        ark: Certificate::from_pem(&buf[2325..])?,
-    })
+    Ok(Chain::from_pem_bytes(&buf)?)
 }
 
 fn ca_chain_url() -> Result<String> {
