@@ -313,9 +313,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.154"
+version = "0.2.165"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae743338b92ff9146ce83992f766a31066a91a8c84a45e0e9f21e7cf6de6d346"
+checksum = "fcb4d3d38eab6c5239a362fa8bae48c03baf980a6e7079f063942d563ef3533e"
 
 [[package]]
 name = "libredox"
