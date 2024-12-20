@@ -63,6 +63,7 @@ impl fmt::Display for TestState {
 enum SnpStatusTest {
     Tcb,
     Rmp,
+    AliasCheck,
     Snp,
 }
 
@@ -77,6 +78,7 @@ impl fmt::Display for SnpStatusTest {
         let s = match self {
             SnpStatusTest::Tcb => "Comparing TCB values",
             SnpStatusTest::Rmp => "RMP INIT",
+            SnpStatusTest::AliasCheck => "Alias check",
             SnpStatusTest::Snp => "SNP INIT",
         };
         write!(f, "{}", s)
@@ -456,6 +458,12 @@ fn collect_tests() -> Vec<Test> {
             sub: vec![],
         },
         Test {
+            name: "Alias check",
+            gen_mask: SNP_MASK,
+            run: Box::new(|| snp_ioctl(SnpStatusTest::AliasCheck)),
+            sub: vec![],
+        },
+        Test {
             name: "Compare TCB values",
             gen_mask: SNP_MASK,
             run: Box::new(|| snp_ioctl(SnpStatusTest::Tcb)),
@@ -826,6 +834,23 @@ fn snp_ioctl(test: SnpStatusTest) -> TestResult {
                     name: format!("{}", SnpStatusTest::Rmp),
                     stat: TestState::Fail,
                     mesg: Some("RMP is UNINIT".to_string()),
+                }
+            }
+        }
+        SnpStatusTest::AliasCheck => {
+            if (status.is_rmp_init & PlatformInit::ALIAS_CHECK_COMPLETE).bits() != 0 {
+                TestResult {
+                    name: format!("{}", SnpStatusTest::AliasCheck),
+                    stat: TestState::Pass,
+                    mesg: Some(
+                        "Completed since last system update, no aliasing addresses".to_string(),
+                    ),
+                }
+            } else {
+                TestResult {
+                    name: format!("{}", SnpStatusTest::AliasCheck),
+                    stat: TestState::Fail,
+                    mesg: None,
                 }
             }
         }
