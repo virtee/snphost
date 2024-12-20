@@ -298,7 +298,26 @@ fn collect_tests() -> Vec<Test> {
                                     name: "SNP INIT",
                                     gen_mask: SNP_MASK,
                                     run: Box::new(|| snp_ioctl(SnpStatusTest::Snp)),
-                                    sub: vec![],
+                                    sub: vec![
+                                        Test {
+                                            name: "Read RMP tables",
+                                            gen_mask: SNP_MASK,
+                                            run: Box::new(get_rmp_address),
+                                            sub: vec![],
+                                        },
+                                        Test {
+                                            name: "RMP INIT",
+                                            gen_mask: SNP_MASK,
+                                            run: Box::new(|| snp_ioctl(SnpStatusTest::Rmp)),
+                                            sub: vec![],
+                                        },
+                                        Test {
+                                            name: "Alias check",
+                                            gen_mask: SNP_MASK,
+                                            run: Box::new(|| snp_ioctl(SnpStatusTest::AliasCheck)),
+                                            sub: vec![],
+                                        },
+                                    ],
                                 },
                             ],
                         },
@@ -443,24 +462,6 @@ fn collect_tests() -> Vec<Test> {
             name: "memlock limit",
             gen_mask: SEV_MASK,
             run: Box::new(memlock_rlimit),
-            sub: vec![],
-        },
-        Test {
-            name: "Read RMP tables",
-            gen_mask: SNP_MASK,
-            run: Box::new(get_rmp_address),
-            sub: vec![],
-        },
-        Test {
-            name: "RMP INIT",
-            gen_mask: SNP_MASK,
-            run: Box::new(|| snp_ioctl(SnpStatusTest::Rmp)),
-            sub: vec![],
-        },
-        Test {
-            name: "Alias check",
-            gen_mask: SNP_MASK,
-            run: Box::new(|| snp_ioctl(SnpStatusTest::AliasCheck)),
             sub: vec![],
         },
         Test {
@@ -787,7 +788,7 @@ fn get_rmp_address() -> TestResult {
         TestResult {
             name: "RMP table addresses".to_string(),
             stat: TestState::Pass,
-            mesg: format!("Addresses: {} - {}", rmp_base, rmp_end).into(),
+            mesg: format!("0x{:x} - 0x{:x}", rmp_base, rmp_end).into(),
         }
     }
 }
