@@ -23,10 +23,17 @@ pub struct Vcek {
     /// The path of a directory to store the encoded VCEK in
     #[arg(value_name = "path", required = true)]
     path: PathBuf,
+
+    /// The URL of the VCEK. If not explicitly set, the URL will be generated based on firmware data
+    #[arg(value_name = "url", required = false)]
+    url: Option<String>,
 }
 
 pub fn cmd(vcek: Vcek) -> Result<()> {
-    let url = vcek_url()?;
+    let url = match vcek.url {
+        Some(url) => url,
+        None => vcek_url()?,
+    };
     let cert = fetch(&url).context(format!("unable to fetch VCEK from {}", url))?;
 
     let (vcek_name, vcek_bytes) = match vcek.encoding_fmt {
