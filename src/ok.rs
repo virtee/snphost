@@ -89,7 +89,7 @@ impl fmt::Display for SevStatusTests {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             SevStatusTests::Sev => "SEV initialized",
-            SevStatusTests::Firmware => "SEV firmware version",
+            SevStatusTests::Firmware => "SEV Firmware Version",
             SevStatusTests::SevEs => "SEV-ES initialized",
         };
         write!(f, "{}", s)
@@ -199,12 +199,6 @@ fn collect_tests() -> Vec<Test> {
                     }),
                     sub: vec![
                         Test {
-                            name: "SEV Firmware Version",
-                            gen_mask: SNP_MASK,
-                            run: Box::new(|| sev_ioctl(SevStatusTests::Firmware)),
-                            sub: vec![],
-                        },
-                        Test {
                             name: "Encrypted State (SEV-ES)",
                             gen_mask: ES_MASK,
                             run: Box::new(|| {
@@ -292,6 +286,12 @@ fn collect_tests() -> Vec<Test> {
                                     name: "SEV-SNP",
                                     gen_mask: SNP_MASK,
                                     run: Box::new(snp_test),
+                                    sub: vec![],
+                                },
+                                Test {
+                                    name: "SEV Firmware Version",
+                                    gen_mask: SNP_MASK,
+                                    run: Box::new(|| sev_ioctl(SevStatusTests::Firmware)),
                                     sub: vec![],
                                 },
                                 Test {
