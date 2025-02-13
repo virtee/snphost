@@ -70,16 +70,16 @@ enum SnpStatusTest {
 enum SevStatusTests {
     Sev,
     Firmware,
-    SevEs,
+    Seves,
 }
 
 impl fmt::Display for SnpStatusTest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             SnpStatusTest::Tcb => "Comparing TCB values",
-            SnpStatusTest::Rmp => "RMP table initialized",
+            SnpStatusTest::Rmp => "RMP INIT",
             SnpStatusTest::AliasCheck => "Alias check",
-            SnpStatusTest::Snp => "SNP initialized",
+            SnpStatusTest::Snp => "SNP INIT",
         };
         write!(f, "{}", s)
     }
@@ -88,9 +88,9 @@ impl fmt::Display for SnpStatusTest {
 impl fmt::Display for SevStatusTests {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            SevStatusTests::Sev => "SEV initialized",
+            SevStatusTests::Sev => "SEV INIT",
             SevStatusTests::Firmware => "SEV Firmware Version",
-            SevStatusTests::SevEs => "SEV-ES initialized",
+            SevStatusTests::Seves => "SEV-ES INIT",
         };
         write!(f, "{}", s)
     }
@@ -217,14 +217,14 @@ fn collect_tests() -> Vec<Test> {
                                 }
                             }),
                             sub: vec![Test {
-                                name: "SEV-ES initialized",
+                                name: "SEV-ES INIT",
                                 gen_mask: ES_MASK,
-                                run: Box::new(|| sev_ioctl(SevStatusTests::SevEs)),
+                                run: Box::new(|| sev_ioctl(SevStatusTests::Seves)),
                                 sub: vec![],
                             }],
                         },
                         Test {
-                            name: "SEV initialized",
+                            name: "SEV INIT",
                             gen_mask: SNP_MASK,
                             run: Box::new(|| sev_ioctl(SevStatusTests::Sev)),
                             sub: vec![],
@@ -295,7 +295,7 @@ fn collect_tests() -> Vec<Test> {
                                     sub: vec![],
                                 },
                                 Test {
-                                    name: "SNP initialized",
+                                    name: "SNP INIT",
                                     gen_mask: SNP_MASK,
                                     run: Box::new(|| snp_ioctl(SnpStatusTest::Snp)),
                                     sub: vec![
@@ -306,7 +306,7 @@ fn collect_tests() -> Vec<Test> {
                                             sub: vec![],
                                         },
                                         Test {
-                                            name: "RMP table initialized",
+                                            name: "RMP INIT",
                                             gen_mask: SNP_MASK,
                                             run: Box::new(|| snp_ioctl(SnpStatusTest::Rmp)),
                                             sub: vec![],
@@ -578,27 +578,27 @@ fn emit_skip(tests: &[Test], level: usize, quiet: bool) {
 
 fn dev_sev_r() -> TestResult {
     let (stat, mesg) = match dev_sev_rw(fs::OpenOptions::new().read(true)) {
-        Ok(_) => (TestState::Pass, None),
-        Err(e) => (TestState::Fail, Some(format!("Not readable: {}", e))),
+        Ok(_) => (TestState::Pass, "/dev/sev readable".to_string()),
+        Err(e) => (TestState::Fail, format!("/dev/sev not readable: {}", e)),
     };
 
     TestResult {
-        name: "/dev/sev readable".to_string(),
+        name: "Reading /dev/sev".to_string(),
         stat,
-        mesg,
+        mesg: Some(mesg),
     }
 }
 
 fn dev_sev_w() -> TestResult {
     let (stat, mesg) = match dev_sev_rw(fs::OpenOptions::new().write(true)) {
-        Ok(_) => (TestState::Pass, None),
-        Err(e) => (TestState::Fail, Some(format!("Not writable: {}", e))),
+        Ok(_) => (TestState::Pass, "/dev/sev writable".to_string()),
+        Err(e) => (TestState::Fail, format!("/dev/sev not writable: {}", e)),
     };
 
     TestResult {
-        name: "/dev/sev writable".to_string(),
+        name: "Writing /dev/sev".to_string(),
         stat,
-        mesg,
+        mesg: Some(mesg),
     }
 }
 
@@ -648,27 +648,23 @@ fn sev_enabled_in_kvm(gen: SevGeneration) -> TestResult {
         match std::fs::read_to_string(path_loc) {
             Ok(result) => {
                 if result.trim() == "1" || result.trim() == "Y" {
-                    (TestState::Pass, None)
+                    (TestState::Pass, "enabled".to_string())
                 } else {
                     (
                         TestState::Fail,
-                        Some(format!(
-                            "Error - contents read from {}: {}",
-                            path_loc,
-                            result.trim()
-                        )),
+                        format!("Error - contents read from {}: {}", path_loc, result.trim()),
                     )
                 }
             }
             Err(e) => (
                 TestState::Fail,
-                Some(format!("Error - (unable to read {}): {}", path_loc, e,)),
+                format!("Error - (unable to read {}): {}", path_loc, e,),
             ),
         }
     } else {
         (
             TestState::Fail,
-            Some(format!("Error - {} does not exist", path_loc)),
+            format!("Error - {} does not exist", path_loc),
         )
     };
 
@@ -680,7 +676,7 @@ fn sev_enabled_in_kvm(gen: SevGeneration) -> TestResult {
         }
         .to_string(),
         stat,
-        mesg,
+        mesg: Some(mesg),
     }
 }
 
@@ -832,13 +828,13 @@ fn snp_ioctl(test: SnpStatusTest) -> TestResult {
                 TestResult {
                     name: format!("{}", SnpStatusTest::Rmp),
                     stat: TestState::Pass,
-                    mesg: None,
+                    mesg: Some("RMP is INIT".to_string()),
                 }
             } else {
                 TestResult {
                     name: format!("{}", SnpStatusTest::Rmp),
                     stat: TestState::Fail,
-                    mesg: None,
+                    mesg: Some("RMP is UNINIT".to_string()),
                 }
             }
         }
@@ -864,13 +860,13 @@ fn snp_ioctl(test: SnpStatusTest) -> TestResult {
                 TestResult {
                     name: format!("{}", SnpStatusTest::Snp),
                     stat: TestState::Pass,
-                    mesg: None,
+                    mesg: Some("SNP is INIT".to_string()),
                 }
             } else {
                 TestResult {
                     name: format!("{}", SnpStatusTest::Snp),
                     stat: TestState::Fail,
-                    mesg: None,
+                    mesg: Some("SNP is UNINIT".to_string()),
                 }
             }
         }
@@ -894,19 +890,19 @@ fn sev_ioctl(test: SevStatusTests) -> TestResult {
                 TestResult {
                     name: format!("{}", SevStatusTests::Sev),
                     stat: TestState::Pass,
-                    mesg: Some("Initialized, currently running a guest".to_string()),
+                    mesg: Some("SEV is INIT and currently running a guest".to_string()),
                 }
             } else if status.state == State::Initialized {
                 TestResult {
                     name: format!("{}", SevStatusTests::Sev),
                     stat: TestState::Pass,
-                    mesg: Some("Initialized, no guests running".to_string()),
+                    mesg: Some("SEV is INIT, but not currently running a guest".to_string()),
                 }
             } else {
                 TestResult {
                     name: format!("{}", SevStatusTests::Sev),
                     stat: TestState::Fail,
-                    mesg: Some("Uninitialized".to_string()),
+                    mesg: Some("SEV is UNINIT".to_string()),
                 }
             }
         }
@@ -936,21 +932,21 @@ fn sev_ioctl(test: SevStatusTests) -> TestResult {
                 TestResult {
                     name: format!("{}", SevStatusTests::Firmware),
                     stat: TestState::Pass,
-                    mesg: format!("{}", status.build.version).into(),
+                    mesg: format!("Sev firmware version: {}", status.build.version).into(),
                 }
             }
         }
 
-        SevStatusTests::SevEs => {
-            let res = match status.flags.bits() >> 8 & 1 {
-                1 => TestState::Pass,
-                0 => TestState::Fail,
+        SevStatusTests::Seves => {
+            let (res, mesg) = match status.flags.bits() >> 8 & 1 {
+                1 => (TestState::Pass, "Enabled"),
+                0 => (TestState::Fail, "Disabled"),
                 _ => unreachable!(),
             };
             TestResult {
-                name: format!("{}", SevStatusTests::SevEs),
+                name: format!("{}", SevStatusTests::Seves),
                 stat: res,
-                mesg: None,
+                mesg: Some(mesg.to_string()),
             }
         }
     }
