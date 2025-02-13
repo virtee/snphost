@@ -815,7 +815,7 @@ fn snp_ioctl(test: SnpStatusTest) -> TestResult {
             }
         }
         SnpStatusTest::Rmp => {
-            if (status.is_rmp_init & PlatformInit::IS_RMP_INIT).bits() != 0 {
+            if status.is_rmp_init == 1 {
                 TestResult {
                     name: format!("{}", SnpStatusTest::Rmp),
                     stat: TestState::Pass,

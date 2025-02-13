@@ -545,7 +545,8 @@ dependencies = [
 [[package]]
 name = "sev"
 version = "5.0.0"
-source = "git+http://github.com/tylerfanelli/sev.git?branch=platform-status-alias-check#bf1888b00147f202bb0a7943d2b4281e6fefdc8e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b06afe5192a43814047ea0072f4935f830a1de3c8cb43b56c90ae6918468b94d"
 dependencies = [
  "base64",
  "bincode",
