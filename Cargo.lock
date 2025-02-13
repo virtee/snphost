@@ -545,7 +545,7 @@ dependencies = [
 [[package]]
 name = "sev"
 version = "5.0.0"
-source = "git+http://github.com/tylerfanelli/sev.git?branch=platform-status-alias-check#bf1888b00147f202bb0a7943d2b4281e6fefdc8e"
+source = "git+http://github.com/virtee/sev.git?rev=8ec281db27953417a98441abe54b9a47a3e94ba8#8ec281db27953417a98441abe54b9a47a3e94ba8"
 dependencies = [
  "base64",
  "bincode",
