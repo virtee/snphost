@@ -154,12 +154,14 @@ COMMANDS
     -h, --help          Show a help message
 
 *snphost fetch vcek*::
-	usage: snphost fetch vcek [ der, pem ] DIR-PATH
+	usage: snphost fetch vcek [ der, pem ] DIR-PATH [url]
 
         This command fetches the host system's versioned chip endorsement
         key (VCEK) and writes the encoded certificate to the directory at path
         DIR-PATH. Users must specify which format they would like the
-        certificate to be encoded in (DER or PEM).
+        certificate to be encoded in (DER or PEM). The URL of the VCEK can be
+        explicitly set. If not explicitly set, the URL will be generated based
+        on firmware data.
 
  options:
     -h, --help          Show a help message
