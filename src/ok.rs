@@ -828,7 +828,7 @@ fn snp_ioctl(test: SnpStatusTest) -> TestResult {
             }
         }
         SnpStatusTest::Rmp => {
-            if (status.is_rmp_init & PlatformInit::IS_RMP_INIT).bits() != 0 {
+            if status.is_rmp_init.is_rmp_init() {
                 TestResult {
                     name: format!("{}", SnpStatusTest::Rmp),
                     stat: TestState::Pass,
@@ -843,7 +843,7 @@ fn snp_ioctl(test: SnpStatusTest) -> TestResult {
             }
         }
         SnpStatusTest::AliasCheck => {
-            if (status.is_rmp_init & PlatformInit::ALIAS_CHECK_COMPLETE).bits() != 0 {
+            if status.is_rmp_init.alias_check_complete() {
                 TestResult {
                     name: format!("{}", SnpStatusTest::AliasCheck),
                     stat: TestState::Pass,

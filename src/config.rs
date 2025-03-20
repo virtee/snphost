@@ -49,7 +49,7 @@ mod set {
 
     pub fn set_config(args: Args) -> Result<()> {
         // Create Tcb with provided values
-        let tcb = TcbVersion::new(args.bootloader, args.tee, args.snp_fw, args.microcode);
+        let tcb = TcbVersion::new(None, args.bootloader, args.tee, args.snp_fw, args.microcode);
 
         // Create Mask Chip with provided value
         let mask_chip = MaskId(args.mask_chip);
