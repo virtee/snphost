@@ -44,7 +44,7 @@ pub fn cmd(show: Show) -> Result<()> {
 
             println!("{}", url);
         }
-        Show::Version => println!("{}", status.version),
+        Show::Version => println!("{}.{}", status.version.0, status.version.1),
     }
 
     Ok(())
