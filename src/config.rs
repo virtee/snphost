@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::*;
+use crate::processor::ProcessorGeneration;
+use anyhow::anyhow;
 
 // Different config commands
 #[derive(Subcommand)]
@@ -45,11 +47,28 @@ mod set {
         /// Change mask chip bit field (Unsigned 32-bit Integer) values by providing decimal representation of desired change (0-3). Bit[0]: CHIP_ID, Bit[1]: CHIP_KEY. Both are disabled by default
         #[arg(value_name = "mask-chip", required = true)]
         mask_chip: u32,
+
+        /// FMC firmware version.
+        #[arg(value_name = "fmc", required = false)]
+        fmc: Option<u8>,
     }
 
     pub fn set_config(args: Args) -> Result<()> {
+        let fmc = match ProcessorGeneration::current()? {
+            ProcessorGeneration::Turin => {
+                let Some(fmc) = args.fmc else {
+                    return Err(anyhow!(
+                        "Turin generation processor requires FMC version when setting TCB"
+                    ));
+                };
+
+                Some(fmc)
+            }
+            _ => None,
+        };
+
         // Create Tcb with provided values
-        let tcb = TcbVersion::new(None, args.bootloader, args.tee, args.snp_fw, args.microcode);
+        let tcb = TcbVersion::new(fmc, args.bootloader, args.tee, args.snp_fw, args.microcode);
 
         // Create Mask Chip with provided value
         let mask_chip = MaskId(args.mask_chip);

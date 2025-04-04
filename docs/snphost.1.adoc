@@ -102,6 +102,7 @@ COMMANDS
 
                    For example, if the user would like MASK KEY to be enabled and CHIP ID disabled, 
                    then the they would pass in a 2.
+	FMC: Current FMC firmware version
 
   options:
         -h, --help      Show a help message.
