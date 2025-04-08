@@ -185,7 +185,7 @@ fn collect_tests() -> Vec<Test> {
                     run: Box::new(|| {
                         let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                        let stat = if (res.eax & 0x1 << 1) != 0 {
+                        let stat = if res.eax & (0x1 << 1) != 0 {
                             TestState::Pass
                         } else {
                             TestState::Fail
@@ -210,7 +210,7 @@ fn collect_tests() -> Vec<Test> {
                             run: Box::new(|| {
                                 let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                                let stat = if (res.eax & 0x1 << 3) != 0 {
+                                let stat = if res.eax & (0x1 << 3) != 0 {
                                     TestState::Pass
                                 } else {
                                     TestState::Fail
@@ -241,7 +241,7 @@ fn collect_tests() -> Vec<Test> {
                             run: Box::new(|| {
                                 let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                                let stat = if (res.eax & 0x1 << 4) != 0 {
+                                let stat = if res.eax & (0x1 << 4) != 0 {
                                     TestState::Pass
                                 } else {
                                     TestState::Fail
@@ -260,7 +260,7 @@ fn collect_tests() -> Vec<Test> {
                                     run: Box::new(|| {
                                         let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                                        let stat = if (res.eax & 0x1 << 5) != 0 {
+                                        let stat = if res.eax & (0x1 << 5) != 0 {
                                             TestState::Pass
                                         } else {
                                             TestState::Fail
@@ -404,7 +404,7 @@ fn collect_tests() -> Vec<Test> {
                     run: Box::new(|| {
                         let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                        let msr_flag = if (res.eax & 0x1 << 2) != 0 {
+                        let msr_flag = if res.eax & (0x1 << 2) != 0 {
                             "ENABLED".green()
                         } else {
                             "DISABLED".yellow()
@@ -726,7 +726,7 @@ fn sme_test() -> TestResult {
             }
         }
     };
-    let (testres, mesg) = match raw_value >> 23 & 1 {
+    let (testres, mesg) = match (raw_value >> 23) & 1 {
         1 => (TestState::Pass, "Enabled in MSR"),
         0 => (TestState::Fail, "Disabled in MSR"),
         _ => unreachable!(),
@@ -749,7 +749,7 @@ fn snp_test() -> TestResult {
             }
         }
     };
-    let (testres, mesg) = match raw_value >> 24 & 1 {
+    let (testres, mesg) = match (raw_value >> 24) & 1 {
         1 => (TestState::Pass, "Enabled in MSR"),
         0 => (TestState::Fail, "Disabled in MSR"),
         _ => unreachable!(),
@@ -828,7 +828,7 @@ fn snp_ioctl(test: SnpStatusTest) -> TestResult {
             }
         }
         SnpStatusTest::Rmp => {
-            if (status.is_rmp_init & PlatformInit::IS_RMP_INIT).bits() != 0 {
+            if status.is_rmp_init.is_rmp_init() {
                 TestResult {
                     name: format!("{}", SnpStatusTest::Rmp),
                     stat: TestState::Pass,
@@ -843,7 +843,7 @@ fn snp_ioctl(test: SnpStatusTest) -> TestResult {
             }
         }
         SnpStatusTest::AliasCheck => {
-            if (status.is_rmp_init & PlatformInit::ALIAS_CHECK_COMPLETE).bits() != 0 {
+            if status.is_rmp_init.alias_check_complete() {
                 TestResult {
                     name: format!("{}", SnpStatusTest::AliasCheck),
                     stat: TestState::Pass,
@@ -942,7 +942,7 @@ fn sev_ioctl(test: SevStatusTests) -> TestResult {
         }
 
         SevStatusTests::SevEs => {
-            let res = match status.flags.bits() >> 8 & 1 {
+            let res = match (status.flags.bits() >> 8) & 1 {
                 1 => TestState::Pass,
                 0 => TestState::Fail,
                 _ => unreachable!(),

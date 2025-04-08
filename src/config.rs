@@ -25,6 +25,11 @@ mod set {
 
     #[derive(Parser)]
     pub struct Args {
+        /// First Modifiable Code (FMC) - Turin +
+        /// (Optional Unsigned 8-bit Integer)
+        #[arg(value_name = "fmc")]
+        pub fmc: Option<u8>,
+
         /// Bootloader version
         /// (Unsigned 8-bit Integer)
         #[arg(value_name = "bootloader", required = true)]
@@ -49,7 +54,13 @@ mod set {
 
     pub fn set_config(args: Args) -> Result<()> {
         // Create Tcb with provided values
-        let tcb = TcbVersion::new(args.bootloader, args.tee, args.snp_fw, args.microcode);
+        let tcb = TcbVersion::new(
+            args.fmc,
+            args.bootloader,
+            args.tee,
+            args.snp_fw,
+            args.microcode,
+        );
 
         // Create Mask Chip with provided value
         let mask_chip = MaskId(args.mask_chip);
