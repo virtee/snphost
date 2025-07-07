@@ -48,7 +48,8 @@ enum SnpHostCmd {
     Config(config::ConfigCmd),
 
     /// Verify a certificate chain
-    Verify(verify::Verify),
+    #[command(subcommand)]
+    Verify(verify::VerifyCmd),
 
     /// Retrieve content from the AMD Key Distribution Server (KDS)
     #[command(subcommand)]
