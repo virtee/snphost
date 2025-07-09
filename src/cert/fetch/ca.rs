@@ -22,6 +22,10 @@ pub struct Ca {
     /// The directory to write the certificates to
     #[arg(value_name = "dir-path", required = true)]
     pub dir_path: PathBuf,
+
+    /// Specify which endorsement certificate chain to pull, either VCEK or VLEK.
+    #[arg(short, long, value_name = "endorser", default_value_t = Endorsement::Vcek, ignore_case = true)]
+    pub endorser: Endorsement,
 }
 
 fn write_cert(path: &PathBuf, bytes: &[u8]) -> Result<()> {
@@ -35,16 +39,21 @@ fn write_cert(path: &PathBuf, bytes: &[u8]) -> Result<()> {
 }
 
 pub fn cmd(ca: Ca) -> Result<()> {
-    let url: String = ca_chain_url()?;
+    let url: String = ca_chain_url(&ca.endorser)?;
     let cert_chain: Chain = fetch(&url)?;
+
+    let sign_type = match ca.endorser {
+        Endorsement::Vcek => "ask",
+        Endorsement::Vlek => "asvk",
+    };
 
     let ((ask_path, ask_bytes), (ark_path, ark_bytes)) = match ca.encoding_fmt {
         EncodingFormat::Der => (
-            ("ask.der", cert_chain.ask.to_der()?),
+            (format!("{}.der", sign_type), cert_chain.ask.to_der()?),
             ("ark.der", cert_chain.ark.to_der()?),
         ),
         EncodingFormat::Pem => (
-            ("ask.pem", cert_chain.ask.to_pem()?),
+            (format!("{}.pem", sign_type), cert_chain.ask.to_pem()?),
             ("ark.pem", cert_chain.ark.to_pem()?),
         ),
     };
@@ -79,9 +88,10 @@ pub fn fetch(url: &str) -> Result<Chain> {
     Ok(Chain::from_pem_bytes(&buf)?)
 }
 
-fn ca_chain_url() -> Result<String> {
+fn ca_chain_url(endorser: &Endorsement) -> Result<String> {
     Ok(format!(
-        "https://kdsintf.amd.com/vcek/v1/{}/cert_chain",
-        ProcessorGeneration::current()?.to_kds_url()
+        "https://kdsintf.amd.com/{}/v1/{}/cert_chain",
+        endorser.to_string().to_lowercase(),
+        ProcessorGeneration::current()?.to_kds_url(),
     ))
 }
