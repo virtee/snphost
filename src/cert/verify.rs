@@ -49,21 +49,23 @@ mod certificate_chain {
 
     pub fn cmd(verify: Args, quiet: bool) -> Result<()> {
         let ark_path = find_cert_in_dir(&verify.dir_path, "ark")?;
-        let ask_path = find_cert_in_dir(&verify.dir_path, "ask")?;
-        let mut vek_type: &str = "VCEK";
-        let vek_path = match find_cert_in_dir(&verify.dir_path, "vlek") {
+        let (mut vek_type, mut sign_type): (&str, &str) = ("vcek", "ask");
+        let (vek_path, ask_path) = match find_cert_in_dir(&verify.dir_path, "vlek") {
             Ok(vlek_path) => {
-                vek_type = "VLEK";
-                vlek_path
+                (vek_type, sign_type) = ("vlek", "asvk");
+                (vlek_path, find_cert_in_dir(&verify.dir_path, sign_type)?)
             }
-            Err(_) => find_cert_in_dir(&verify.dir_path, "vcek")?,
+            Err(_) => (
+                find_cert_in_dir(&verify.dir_path, vek_type)?,
+                find_cert_in_dir(&verify.dir_path, sign_type)?,
+            ),
         };
 
         // Get a cert chain from directory
-        let cert_chain = chain(ark_path, ask_path, vek_path, vek_type)?;
+        let cert_chain = chain(ark_path, ask_path, vek_path, vek_type, sign_type)?;
 
         let ark = (&cert_chain.ca.ark, "ARK");
-        let ask = (&cert_chain.ca.ask, "ASK");
+        let ask = (&cert_chain.ca.ask, sign_type);
         let vek = (&cert_chain.vek, vek_type);
 
         let mut err = true;
@@ -119,11 +121,12 @@ mod certificate_chain {
         ask_path: PathBuf,
         vek_path: PathBuf,
         vek_type: &str,
+        sign_type: &str,
     ) -> Result<Chain> {
         Ok(Chain {
             ca: ca::Chain {
                 ark: cert(ark_path, "ARK")?,
-                ask: cert(ask_path, "ASK")?,
+                ask: cert(ask_path, sign_type)?,
             },
             vek: cert(vek_path, vek_type)?,
         })
