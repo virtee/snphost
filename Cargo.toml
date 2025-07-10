@@ -25,7 +25,8 @@ is-it-maintained-open-issues = { repository = "virtee/snphost" }
 
 [dependencies]
 anyhow = "1.0.83"
-sev = { version = "6.2.1", features = ['openssl']}
+# sev = { version = "6.2.1", features = ['openssl']}
+sev = {git = "https://github.com/DGonzalezVillal/virtee-sev.git", branch = "vlek-load", features = ['snp', 'openssl'] }
 env_logger = "0.10.1"
 clap = { version = "4.5", features = [ "derive" ] }
 colorful = "0.2.2"
