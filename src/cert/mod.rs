@@ -6,6 +6,7 @@ pub(crate) mod export;
 pub(crate) mod fetch;
 pub(crate) mod import;
 pub(crate) mod verify;
+pub(crate) mod vlek_load;
 
 use std::str::FromStr;
 
