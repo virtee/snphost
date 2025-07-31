@@ -11,7 +11,6 @@ pub enum ConfigCmd {
     Set(set::Args),
 
     /// Reset the SEV-SNP Config to the last comitted version
-    #[command(subcommand)]
     Reset,
 }
 
