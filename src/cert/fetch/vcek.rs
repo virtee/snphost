@@ -82,11 +82,33 @@ pub fn vcek_url() -> Result<String> {
         .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
         .context("error fetching identifier")?;
     let status = snp_platform_status()?;
-    let gen = ProcessorGeneration::current()?.to_kds_url();
+    let processor_generation = ProcessorGeneration::current()?;
+    let vcek_endpoint = format!(
+        "https://kdsintf.amd.com/vcek/v1/{}/{}",
+        processor_generation.to_kds_url(),
+        id
+    );
+    let parameters = format!(
+        "blSPL={:02}&teeSPL={:02}&snpSPL={:02}&ucodeSPL={:02}",
+        status.reported_tcb_version.bootloader,
+        status.reported_tcb_version.tee,
+        status.reported_tcb_version.snp,
+        status.reported_tcb_version.microcode
+    );
 
-    Ok(format!("https://kdsintf.amd.com/vcek/v1/{}/{}?blSPL={:02}&teeSPL={:02}&snpSPL={:02}&ucodeSPL={:02}",
-                         gen, id, status.reported_tcb_version.bootloader,
-                         status.reported_tcb_version.tee,
-                         status.reported_tcb_version.snp,
-                         status.reported_tcb_version.microcode))
+    match processor_generation {
+        ProcessorGeneration::Turin => {
+            if let Some(fmc) = status.reported_tcb_version.fmc {
+                Ok(format!(
+                    "{}?fmcSPL={:02}&{}",
+                    vcek_endpoint, fmc, parameters
+                ))
+            } else {
+                Err(anyhow!(
+                    "Unable to retrieve FMC value from this Turin generation processor"
+                ))
+            }
+        }
+        _ => Ok(format!("{}?{}", vcek_endpoint, parameters)),
+    }
 }
