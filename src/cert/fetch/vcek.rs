@@ -97,6 +97,7 @@ pub fn vcek_url() -> Result<String> {
     );
 
     match processor_generation {
+        // Turin+ processors also require the FMC parameter to fetch VCEKs.
         ProcessorGeneration::Turin => {
             if let Some(fmc) = status.reported_tcb_version.fmc {
                 Ok(format!(
