@@ -86,6 +86,7 @@ fn entry_get_type(path: &PathBuf) -> Result<Option<CertType>> {
     match subs[0] {
         "ark" => Ok(Some(CertType::ARK)),
         "ask" => Ok(Some(CertType::ASK)),
+        "asvk" => Ok(Some(CertType::ASK)),
         "vlek" => Ok(Some(CertType::VLEK)),
         "vcek" => Ok(Some(CertType::VCEK)),
         _ => Ok(None),

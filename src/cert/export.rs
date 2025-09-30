@@ -70,7 +70,12 @@ pub fn cmd(export: Export) -> Result<()> {
                 }
                 ask = true;
 
-                "ask"
+                // Unless VLEK is encountered, assume VCEK style endorsement with ASK.
+                if vlek {
+                    "asvk"
+                } else {
+                    "ask"
+                }
             }
             CertType::VLEK => {
                 if vlek {
