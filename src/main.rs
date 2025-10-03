@@ -9,7 +9,7 @@ mod show;
 
 mod ok;
 
-use cert::{export, fetch, import, verify};
+use cert::{export, fetch, import, verify, vlek_load};
 
 use anyhow::{Context, Result};
 use clap::{arg, Parser, Subcommand, ValueEnum};
@@ -48,7 +48,8 @@ enum SnpHostCmd {
     Config(config::ConfigCmd),
 
     /// Verify a certificate chain
-    Verify(verify::Verify),
+    #[command(subcommand)]
+    Verify(verify::VerifyCmd),
 
     /// Retrieve content from the AMD Key Distribution Server (KDS)
     #[command(subcommand)]
@@ -56,6 +57,9 @@ enum SnpHostCmd {
 
     /// Commit current firmware and TCB versions to PSP
     Commit,
+
+    /// Load a VLEK to the system.
+    VlekLoad(vlek_load::VlekLoad),
 }
 
 // Commit command
@@ -98,6 +102,7 @@ fn main() -> Result<()> {
         SnpHostCmd::Verify(verify) => verify::cmd(verify, snphost.quiet),
         SnpHostCmd::Fetch(fetch) => fetch::cmd(fetch),
         SnpHostCmd::Commit => commit::cmd(),
+        SnpHostCmd::VlekLoad(load) => vlek_load::cmd(load),
     };
 
     if !snphost.quiet {
