@@ -32,7 +32,7 @@ pub struct Vek {
 pub fn cmd(vek: Vek) -> Result<()> {
     let url = match vek.url {
         Some(url) => url,
-        None => vcek_url()?,
+        None => vek_url(Endorsement::Vcek)?,
     };
     let cert = fetch(&url).context(format!("unable to fetch VCEK from {}", url))?;
 
@@ -76,18 +76,25 @@ pub fn fetch(url: &str) -> Result<Certificate> {
     Ok(Certificate::from_der(buf.as_slice())?)
 }
 
-pub fn vcek_url() -> Result<String> {
+pub fn vek_url(endorser: Endorsement) -> Result<String> {
     let id = firmware()?
         .get_identifier()
         .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
         .context("error fetching identifier")?;
     let status = snp_platform_status()?;
     let processor_generation = ProcessorGeneration::current()?;
-    let vcek_endpoint = format!(
-        "https://kdsintf.amd.com/vcek/v1/{}/{}",
-        processor_generation.to_kds_url(),
-        id
-    );
+    let vek_endpoint = if endorser == Endorsement::Vcek {
+        format!(
+            "https://kdsintf.amd.com/vcek/v1/{}/{}",
+            processor_generation.to_kds_url(),
+            id
+        )
+    } else {
+        format!(
+            "https://kdsintf.amd.com:444/vlek/v1/{}/cert",
+            processor_generation.to_kds_url(),
+        )
+    };
     let parameters = format!(
         "blSPL={:02}&teeSPL={:02}&snpSPL={:02}&ucodeSPL={:02}",
         status.reported_tcb_version.bootloader,
@@ -100,16 +107,13 @@ pub fn vcek_url() -> Result<String> {
         // Turin+ processors also require the FMC parameter to fetch VCEKs.
         ProcessorGeneration::Turin => {
             if let Some(fmc) = status.reported_tcb_version.fmc {
-                Ok(format!(
-                    "{}?fmcSPL={:02}&{}",
-                    vcek_endpoint, fmc, parameters
-                ))
+                Ok(format!("{}?fmcSPL={:02}&{}", vek_endpoint, fmc, parameters))
             } else {
                 Err(anyhow!(
                     "Unable to retrieve FMC value from this Turin generation processor"
                 ))
             }
         }
-        _ => Ok(format!("{}?{}", vcek_endpoint, parameters)),
+        _ => Ok(format!("{}?{}", vek_endpoint, parameters)),
     }
 }
