@@ -177,7 +177,15 @@ Displays the URL for fetching VCEK.
 snphost show vcek-url
 ```
 
-#### 5. `version`
+#### 5. `vlek-url`
+Displays the URL for fetching VLEK.
+
+**Usage:**
+```sh
+snphost show vlek-url
+```
+
+#### 6. `version`
 
 Prints the platform's SEV-SNP firmware version`.
 
