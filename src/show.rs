@@ -18,6 +18,9 @@ pub enum Show {
     /// Show the VCEK DER download URL
     VcekUrl,
 
+    /// Show the VLEK DER download URL
+    VlekUrl,
+
     /// Show the platform's firmware version
     Version,
 }
@@ -44,6 +47,7 @@ pub fn cmd(show: Show) -> Result<()> {
 
             println!("{}", url);
         }
+        Show::VlekUrl => println!("{}", vek_url(Endorsement::Vlek)?),
         Show::Version => println!("{}.{}", status.version.0, status.version.1),
     }
 
