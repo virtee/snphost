@@ -2,7 +2,7 @@
 
 use super::*;
 
-use cert::fetch::vcek::vcek_url;
+use cert::fetch::vek::vcek_url;
 
 #[derive(Subcommand)]
 pub enum Show {

@@ -15,44 +15,44 @@ use curl::easy::Easy;
 use sev::certs::snp::Certificate;
 
 #[derive(Parser)]
-pub struct Vcek {
+pub struct Vek {
     /// The format in which to encode the certificate
     #[arg(value_name = "encoding", required = true)]
     encoding_fmt: EncodingFormat,
 
-    /// The path of a directory to store the encoded VCEK in
+    /// The path of a directory to store the encoded VEK in
     #[arg(value_name = "path", required = true)]
     path: PathBuf,
 
-    /// The URL of the VCEK. If not explicitly set, the URL will be generated based on firmware data
+    /// The URL of the VEK. If not explicitly set, the URL will be generated based on firmware data
     #[arg(value_name = "url", required = false)]
     url: Option<String>,
 }
 
-pub fn cmd(vcek: Vcek) -> Result<()> {
-    let url = match vcek.url {
+pub fn cmd(vek: Vek) -> Result<()> {
+    let url = match vek.url {
         Some(url) => url,
         None => vcek_url()?,
     };
     let cert = fetch(&url).context(format!("unable to fetch VCEK from {}", url))?;
 
-    let (vcek_name, vcek_bytes) = match vcek.encoding_fmt {
+    let (vek_name, vek_bytes) = match vek.encoding_fmt {
         EncodingFormat::Der => ("vcek.der", cert.to_der()?),
         EncodingFormat::Pem => ("vcek.pem", cert.to_pem()?),
     };
 
     // Create Directory if not exists first, then write the files.
-    if !vcek.path.exists() {
-        create_dir_all(&vcek.path)?;
+    if !vek.path.exists() {
+        create_dir_all(&vek.path)?;
     }
 
     let mut file = OpenOptions::new()
         .create(true)
         .truncate(true)
         .write(true)
-        .open(vcek.path.join(vcek_name))?;
+        .open(vek.path.join(vek_name))?;
 
-    file.write_all(&vcek_bytes)?;
+    file.write_all(&vek_bytes)?;
 
     Ok(())
 }
