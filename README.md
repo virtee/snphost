@@ -106,20 +106,20 @@ snphost fetch ca [der|pem] DIR-PATH
 snphost fetch ca pem ./certs
 ```
 
-#### 2. `vcek`
+#### 2. `vek`
 
 Fetches the Versioned Chip Endorsement Key (VCEK) corresponding to the host CPU generation and writes the encoded certificate to the specified directory. Users must specify the desired encoding format (`der` or `pem`). The URL of the VCEK can be explicitly set. If not explicitly set, the URL will be generated based on firmware data.
 
 **Usage:**
 
 ```bash
-snphost fetch vcek [der|pem] DIR-PATH [url]
+snphost fetch vek [der|pem] DIR-PATH [url]
 ```
 
 **Example:**
 
 ```bash
-snphost fetch vcek pem ./certs
+snphost fetch vek pem ./certs
 ```
 
 #### 3. `crl`
@@ -408,7 +408,7 @@ This flow demonstrates fetching host certificates, verifying the certs, importin
 ```bash
 # Fetch certificates from KDS
 snphost fetch ca pem ./certs
-snphost fetch vcek pem ./certs
+snphost fetch vek pem ./certs
 
 # Verify the certificate chain (optional but recommended)
 snphost verify ./certs
@@ -439,4 +439,4 @@ If you encounter any issues or bugs while using `snphost`, please report them by
 
 ---
 
-*Note: This README is structured similarly to the [snpguest README](https://github.com/virtee/snpguest/blob/main/README.md) to maintain consistency across related projects.* 
+*Note: This README is structured similarly to the [snpguest README](https://github.com/virtee/snpguest/blob/main/README.md) to maintain consistency across related projects.*
