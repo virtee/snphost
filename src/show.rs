@@ -2,7 +2,7 @@
 
 use super::*;
 
-use cert::fetch::vek::vcek_url;
+use cert::{fetch::vek::vek_url, Endorsement};
 
 #[derive(Subcommand)]
 pub enum Show {
@@ -40,7 +40,7 @@ pub fn cmd(show: Show) -> Result<()> {
             status.reported_tcb_version, status.platform_tcb_version
         ),
         Show::VcekUrl => {
-            let url = vcek_url()?;
+            let url = vek_url(Endorsement::Vcek)?;
 
             println!("{}", url);
         }

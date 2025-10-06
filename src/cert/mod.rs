@@ -44,3 +44,37 @@ impl FromStr for EncodingFormat {
         }
     }
 }
+
+#[derive(ValueEnum, Clone, PartialEq)]
+pub enum Endorsement {
+    /// Versioned Chip Enforsement Key (VCEK)
+    Vcek,
+
+    /// Versioned Loaded Enforsement Key (VLEK)
+    Vlek,
+}
+
+impl std::fmt::Display for Endorsement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Vcek => "vcek",
+                Self::Vlek => "vlek",
+            }
+        )
+    }
+}
+
+impl FromStr for Endorsement {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> std::prelude::v1::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "vcek" => Ok(Self::Vcek),
+            "vlek" => Ok(Self::Vlek),
+            _ => Err(anyhow::anyhow!("Endorsement type not found!")),
+        }
+    }
+}
