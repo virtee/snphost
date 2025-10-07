@@ -92,18 +92,18 @@ snphost fetch <subcommand>
 
 #### 1. `ca` 
 
-Fetches the Certificate Authority (CA) chain corresponding to the host CPU generation and writes the encoded certificates to the specified directory. Users must specify the desired encoding format (`der` or `pem`).
+Fetches the Certificate Authority (CA) chain corresponding to the host CPU generation and writes the encoded certificates to the specified directory. Users must specify the desired encoding format (`der` or `pem`). The `--endorser` argument specifies the type of endorsement certificate chain to pull, either VCEK or VLEK (Defaults to VCEK)
 
 **Usage:**
 
 ```bash
-snphost fetch ca [der|pem] DIR-PATH
+snphost fetch ca [der|pem] DIR-PATH [--endorser vcek|vlek]
 ```
 
 **Example:**
 
 ```bash
-snphost fetch ca pem ./certs
+snphost fetch ca pem ./certs -e vcek
 ```
 
 #### 2. `vek`
