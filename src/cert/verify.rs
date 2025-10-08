@@ -33,7 +33,7 @@ pub fn find_cert_in_dir(dir: &Path, cert: &str) -> Result<PathBuf, anyhow::Error
     } else if dir.join(format!("{cert}.der")).exists() {
         Ok(dir.join(format!("{cert}.der")))
     } else {
-        return Err(anyhow::anyhow!("{cert} certificate not found in directory"));
+        Err(anyhow::anyhow!("{cert} certificate not found in directory"))
     }
 }
 mod certificate_chain {
@@ -146,7 +146,7 @@ mod certificate_chain {
 
 mod vlek_hashstick {
     use super::*;
-    use sev::{firmware::host::WrappedVlekHashstick, Generation};
+    use sev::{firmware::host::WrappedVlekHashstick, parser::ByteParser, Generation};
 
     #[derive(Parser)]
     pub struct Args {
@@ -168,7 +168,7 @@ mod vlek_hashstick {
 
         let generation = Generation::identify_host_generation()?;
 
-        let hashstick = WrappedVlekHashstick::from_bytes(&hashstick_bytes, generation)
+        let hashstick = WrappedVlekHashstick::from_bytes_with(&hashstick_bytes, generation)
             .context("Failed to parse VLEK hashshtick")?;
 
         // Verify the VLEK hashstick
@@ -176,13 +176,13 @@ mod vlek_hashstick {
 
         if hashstick.tcb_version != reported_tcb {
             return Err(anyhow::anyhow!(
-                "VLEK hashstick TCB version {} does not match reported TCB version {}",
+                "VLEK hashstick TCB version:\n {} \ndoes not match reported TCB version:\n {}",
                 hashstick.tcb_version,
                 reported_tcb
             ));
         } else if !quiet {
             println!(
-                "VLEK hashstick TCB version {} matches reported TCB version {}",
+                "VLEK hashstick TCB version:\n {} \nmatches reported TCB version:\n {}",
                 hashstick.tcb_version, reported_tcb
             );
         }

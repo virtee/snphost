@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::*;
-use sev::{firmware::host::WrappedVlekHashstick, Generation};
+use sev::{firmware::host::WrappedVlekHashstick, parser::ByteParser, Generation};
 use std::{fs::read, path::PathBuf};
 
 use anyhow::{bail, Context, Result};
@@ -26,16 +26,13 @@ pub fn cmd(vlek_load: VlekLoad) -> Result<()> {
 
     let generation = Generation::identify_host_generation()?;
 
-    let hashstick = WrappedVlekHashstick::from_bytes(&hashstick_bytes, generation)
+    let hashstick = WrappedVlekHashstick::from_bytes_with(&hashstick_bytes, generation)
         .context("Failed to parse VLEK hashshtick")?;
-
-    let mut buffer: [u8; 432] = [0; 432];
-    hashstick.write_bytes(&mut buffer[..], generation)?;
 
     // Load the VLEK hashshtick into the firmware.
     let mut fw = firmware()?;
 
-    fw.snp_vlek_load(buffer.as_slice())
+    fw.snp_vlek_load(hashstick)
         .map_err(|e| anyhow::anyhow!(format!("{:}", e)))
         .context("Error loading VLEK hashshtick")?;
 
