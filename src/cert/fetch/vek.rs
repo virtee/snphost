@@ -24,21 +24,41 @@ pub struct Vek {
     #[arg(value_name = "path", required = true)]
     path: PathBuf,
 
+    /// The type of the endorsement key
+    #[arg(short, long, value_name = "endoser", default_value_t = Endorsement::Vcek, ignore_case = true)]
+    endorser: Endorsement,
+
+    /// The path of the client certificate
+    #[arg(long, value_name = "client-cert")]
+    client_cert: Option<PathBuf>,
+
+    /// The path of the client private key
+    #[arg(long, value_name = "private-key")]
+    private_key: Option<PathBuf>,
+
     /// The URL of the VEK. If not explicitly set, the URL will be generated based on firmware data
     #[arg(value_name = "url", required = false)]
     url: Option<String>,
 }
 
 pub fn cmd(vek: Vek) -> Result<()> {
+    let (vek_type, kds_url) = match vek.endorser {
+        Endorsement::Vcek => ("vcek", vek_url(Endorsement::Vcek)?),
+        Endorsement::Vlek => ("vlek", vek_url(Endorsement::Vlek)?),
+    };
     let url = match vek.url {
         Some(url) => url,
-        None => vek_url(Endorsement::Vcek)?,
+        None => kds_url,
     };
-    let cert = fetch(&url).context(format!("unable to fetch VCEK from {}", url))?;
+    let cert = fetch(&vek.client_cert, &vek.private_key, &url).context(format!(
+        "unable to fetch {} from {}",
+        vek_type.to_uppercase(),
+        url
+    ))?;
 
     let (vek_name, vek_bytes) = match vek.encoding_fmt {
-        EncodingFormat::Der => ("vcek.der", cert.to_der()?),
-        EncodingFormat::Pem => ("vcek.pem", cert.to_pem()?),
+        EncodingFormat::Der => (format!("{}.der", vek_type), cert.to_der()?),
+        EncodingFormat::Pem => (format!("{}.pem", vek_type), cert.to_pem()?),
     };
 
     // Create Directory if not exists first, then write the files.
@@ -57,9 +77,17 @@ pub fn cmd(vek: Vek) -> Result<()> {
     Ok(())
 }
 
-pub fn fetch(url: &str) -> Result<Certificate> {
+pub fn fetch(cert: &Option<PathBuf>, key: &Option<PathBuf>, url: &str) -> Result<Certificate> {
     let mut handle = Easy::new();
     let mut buf: Vec<u8> = Vec::new();
+
+    if let Some(client_cert) = cert {
+        handle.ssl_cert(client_cert)?;
+    }
+
+    if let Some(private_key) = key {
+        handle.ssl_key(private_key)?;
+    }
 
     handle.url(url)?;
     handle.get(true)?;
