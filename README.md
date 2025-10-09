@@ -123,16 +123,16 @@ snphost fetch vek pem ./certs --endorser vcek
 ```
 
 #### 3. `crl`
-Fetches the latest Certificate Revocation List (CRL) for the host CPU generation.
+Fetches the latest Certificate Revocation List (CRL) for the host CPU generation. The `--endorser` argument specifies the type of attestation signing key (defaults to VCEK).
 
 ```sh
-snphost fetch crl DIR-PATH
+snphost fetch crl DIR-PATH [--endorser vcek|vlek]
 ```
 
 **Example:**
 
 ```bash
-snphost fetch crl ./crl-dir
+snphost fetch crl ./crl-dir -e vcek
 ```
 
 ### 6. `show`

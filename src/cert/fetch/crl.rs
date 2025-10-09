@@ -10,22 +10,19 @@ use std::{
     path::PathBuf,
 };
 
-fn crl_url() -> Result<String> {
-    Ok(format!(
-        "https://kdsintf.amd.com/vcek/v1/{}/crl",
-        ProcessorGeneration::current()?.to_kds_url()
-    ))
-}
-
 #[derive(Parser)]
 pub struct Crl {
     /// The directory to write the CRL to
     #[arg(value_name = "dir-path", required = true)]
     pub dir_path: PathBuf,
+
+    /// Specify which endorsement CRL to pull, either VCEK or VLEK.
+    #[arg(short, long, value_name = "endorser", default_value_t = Endorsement::Vcek, ignore_case = true)]
+    pub endorser: Endorsement,
 }
 
 pub fn cmd(crl: Crl) -> Result<()> {
-    let url: String = crl_url()?;
+    let url: String = crl_url(crl.endorser)?;
     let bytes: Vec<u8> = fetch(&url)?;
 
     // Create Directory if not exists first, then write the files.
@@ -44,6 +41,14 @@ pub fn cmd(crl: Crl) -> Result<()> {
 
     file.write_all(&bytes)
         .context("Failed to write CRL to directory specified!")
+}
+
+fn crl_url(endorser: Endorsement) -> Result<String> {
+    Ok(format!(
+        "https://kdsintf.amd.com/{}/v1/{}/crl",
+        endorser,
+        ProcessorGeneration::current()?.to_kds_url()
+    ))
 }
 
 pub fn fetch(url: &str) -> Result<Vec<u8>> {
