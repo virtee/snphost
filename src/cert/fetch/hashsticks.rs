@@ -37,6 +37,10 @@ pub struct Hashsticks {
     /// The path of the request file to request hashsticks for multiple machines.
     #[arg(long, value_name = "json", conflicts_with = "hwid")]
     pub json: Option<PathBuf>,
+
+    /// The filename of the raw KDS response. When specified, no preprocessing will be done.
+    #[arg(short, long, value_name = "result")]
+    pub result: Option<String>,
 }
 
 // Define a struct to deserialize the JSON response
@@ -49,7 +53,7 @@ pub fn cmd(hashsticks: Hashsticks) -> Result<()> {
     let url = vlek_hashsticks_url()?;
     let request_body: String;
     let mut preprocess = false;
-    let hashsticks_filename = "hashsticks";
+    let mut hashsticks_filename = "hashsticks".to_string();
 
     if let Some(body) = hashsticks.json {
         request_body = read_to_string(&body)?;
@@ -61,6 +65,10 @@ pub fn cmd(hashsticks: Hashsticks) -> Result<()> {
             .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
             .context("error detecting identifier on this machine")?;
         (preprocess, request_body) = (true, format!("{{\"hwids\":[\"{}\"]}}", hwid));
+    }
+
+    if let Some(name) = hashsticks.result {
+        (preprocess, hashsticks_filename) = (false, name);
     }
 
     let cert = fetch(
