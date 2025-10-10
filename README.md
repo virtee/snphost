@@ -135,6 +135,27 @@ snphost fetch crl DIR-PATH [--endorser vcek|vlek]
 snphost fetch crl ./crl-dir -e vcek
 ```
 
+#### 4. `hashsticks`
+Fetches the VLEK hashsticks for the machines with identical host CPU generation and the reported TCB version as the host, then saves them to a file called "hashsticks". Users must specify the path to client certificate and the client private key. If there is no option specified, the command downloads and prepares the binary VLEK hashstick for the machine running this command. If option `--hwid ${hwid}` is specified, the command downloads and prepares the VLEK hashstick for the specified hwid. If option `--json /path/to/json` is specified, the command uses the provided file, which contains a list of hwid whose hashsticks will be fetched, as the request body to query KDS. Unlike no option or `--hwid ${hwid}` option, the whole response from the server will be saved. Users will need to process the response themselves. Option `--hwid` and `--json` are mutually exclusive. 
+
+```sh
+snphost fetch hashsticks DIR-PATH CERT-PATH KEY-PATH [--hwid <hwid>] [--json <hwid-json>]
+```
+A hwID JSON is needed for option `--json` should contain a JSON structure with an array of hwIDs, an example can be found below
+```console
+"hwids": [
+    "29ea45c..b9a451",
+    "46e2c6e..11364f",
+]
+
+```
+
+**Example:**
+
+```bash
+snphost fetch hashsticks ./hashsticks-dir ./client-cert.pem ./client.key
+```
+
 ### 6. `show`
 Display information about the SEV-SNP platform.
 
