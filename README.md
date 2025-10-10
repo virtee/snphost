@@ -206,7 +206,15 @@ Displays the URL for fetching VLEK.
 snphost show vlek-url
 ```
 
-#### 6. `version`
+#### 6. `hashsticks-url`
+Displays the URL for fetching VLEK hashsticks.
+
+**Usage:**
+```sh
+snphost show hashsticks-url
+```
+
+#### 7. `version`
 
 Prints the platform's SEV-SNP firmware version`.
 
