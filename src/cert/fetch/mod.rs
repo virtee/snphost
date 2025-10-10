@@ -4,6 +4,7 @@ use super::*;
 
 pub(crate) mod ca;
 pub(crate) mod crl;
+pub(crate) mod hashsticks;
 pub(crate) mod vek;
 use anyhow::Result;
 
@@ -17,6 +18,9 @@ pub enum Fetch {
 
     /// Fetches the CRL from the KDS
     Crl(crl::Crl),
+
+    /// Fetches the VLEK hashsticks from the KDS
+    Hashsticks(hashsticks::Hashsticks),
 }
 
 pub fn cmd(fetch: Fetch) -> Result<()> {
@@ -24,5 +28,6 @@ pub fn cmd(fetch: Fetch) -> Result<()> {
         Fetch::Vek(vek) => vek::cmd(vek),
         Fetch::Ca(ca) => ca::cmd(ca),
         Fetch::Crl(crl) => crl::cmd(crl),
+        Fetch::Hashsticks(hashsticks) => hashsticks::cmd(hashsticks),
     }
 }
