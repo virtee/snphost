@@ -92,47 +92,68 @@ snphost fetch <subcommand>
 
 #### 1. `ca` 
 
-Fetches the Certificate Authority (CA) chain corresponding to the host CPU generation and writes the encoded certificates to the specified directory. Users must specify the desired encoding format (`der` or `pem`).
+Fetches the Certificate Authority (CA) chain corresponding to the host CPU generation and writes the encoded certificates to the specified directory. Users must specify the desired encoding format (`der` or `pem`). The `--endorser` argument specifies the type of endorsement certificate chain to pull, either VCEK or VLEK (Defaults to VCEK)
 
 **Usage:**
 
 ```bash
-snphost fetch ca [der|pem] DIR-PATH
+snphost fetch ca [der|pem] DIR-PATH [--endorser vcek|vlek]
 ```
 
 **Example:**
 
 ```bash
-snphost fetch ca pem ./certs
+snphost fetch ca pem ./certs -e vcek
 ```
 
-#### 2. `vcek`
+#### 2. `vek`
 
-Fetches the Versioned Chip Endorsement Key (VCEK) corresponding to the host CPU generation and writes the encoded certificate to the specified directory. Users must specify the desired encoding format (`der` or `pem`). The URL of the VCEK can be explicitly set. If not explicitly set, the URL will be generated based on firmware data.
+Fetches the Versioned Endorsement Key (VEK) corresponding to the host CPU generation and writes the encoded certificate to the specified directory. Users must specify the desired encoding format (`der` or `pem`). The URL of the VEK can be explicitly set. If not explicitly set, the URL will be generated based on firmware data.
 
 **Usage:**
 
 ```bash
-snphost fetch vcek [der|pem] DIR-PATH [url]
+snphost fetch vek [der|pem] DIR-PATH [url] [--endorser vcek|vlek] [--client-cert <CERT-PATH>] [--private-key <KEY-PATH>]
 ```
 
 **Example:**
 
 ```bash
-snphost fetch vcek pem ./certs
+snphost fetch vek pem ./certs --endorser vcek
 ```
 
 #### 3. `crl`
-Fetches the latest Certificate Revocation List (CRL) for the host CPU generation.
+Fetches the latest Certificate Revocation List (CRL) for the host CPU generation. The `--endorser` argument specifies the type of attestation signing key (defaults to VCEK).
 
 ```sh
-snphost fetch crl DIR-PATH
+snphost fetch crl DIR-PATH [--endorser vcek|vlek]
 ```
 
 **Example:**
 
 ```bash
-snphost fetch crl ./crl-dir
+snphost fetch crl ./crl-dir -e vcek
+```
+
+#### 4. `hashsticks`
+Fetches the VLEK hashsticks for the machines with identical host CPU generation and the reported TCB version as the host, then saves them to a file called "hashsticks". Users must specify the path to client certificate and the client private key. If there is no `--hwid ${hwid}` or `--json /path/to/json` option specified, the command downloads and prepares the binary VLEK hashstick for the machine running this command unless option `--result ${filename}` is used, which saves the unprocessed KDS response to as `${filename}` under directory `${CERT-PATH}` instead. If option `--hwid ${hwid}` is specified, the command downloads and prepares the VLEK hashstick for the specified hwid. Unprocessed KDS response are also available through option `--result ${filename}`, no binary hashstick will be saved. If option `--json /path/to/json` is specified, the command uses the provided file, which contains a list of hwid whose hashsticks will be fetched, as the request body to query KDS. Unlike no option or `--hwid ${hwid}` option, the whole response from the server will be saved. Users will need to process the response themselves. Users may still use option `--result <filename>` to change the name of the output file. Option `--hwid` and `--json` are mutually exclusive. 
+
+```sh
+snphost fetch hashsticks DIR-PATH CERT-PATH KEY-PATH [--hwid <hwid>] [--json <hwid-json>] [--result <filename>]
+```
+A hwID JSON is needed for option `--json` should contain a JSON structure with an array of hwIDs, an example can be found below
+```console
+"hwids": [
+    "29ea45c..b9a451",
+    "46e2c6e..11364f",
+]
+
+```
+
+**Example:**
+
+```bash
+snphost fetch hashsticks ./hashsticks-dir ./client-cert.pem ./client.key
 ```
 
 ### 6. `show`
@@ -177,7 +198,23 @@ Displays the URL for fetching VCEK.
 snphost show vcek-url
 ```
 
-#### 5. `version`
+#### 5. `vlek-url`
+Displays the URL for fetching VLEK.
+
+**Usage:**
+```sh
+snphost show vlek-url
+```
+
+#### 6. `hashsticks-url`
+Displays the URL for fetching VLEK hashsticks.
+
+**Usage:**
+```sh
+snphost show hashsticks-url
+```
+
+#### 7. `version`
 
 Prints the platform's SEV-SNP firmware version`.
 
@@ -408,7 +445,7 @@ This flow demonstrates fetching host certificates, verifying the certs, importin
 ```bash
 # Fetch certificates from KDS
 snphost fetch ca pem ./certs
-snphost fetch vcek pem ./certs
+snphost fetch vek pem ./certs
 
 # Verify the certificate chain (optional but recommended)
 snphost verify ./certs
@@ -439,4 +476,4 @@ If you encounter any issues or bugs while using `snphost`, please report them by
 
 ---
 
-*Note: This README is structured similarly to the [snpguest README](https://github.com/virtee/snpguest/blob/main/README.md) to maintain consistency across related projects.* 
+*Note: This README is structured similarly to the [snpguest README](https://github.com/virtee/snpguest/blob/main/README.md) to maintain consistency across related projects.*
