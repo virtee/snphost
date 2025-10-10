@@ -2,7 +2,7 @@
 
 use super::*;
 
-use cert::{fetch::vek::vek_url, Endorsement};
+use cert::{fetch::hashsticks::vlek_hashsticks_url, fetch::vek::vek_url, Endorsement};
 
 #[derive(Subcommand)]
 pub enum Show {
@@ -20,6 +20,9 @@ pub enum Show {
 
     /// Show the VLEK DER download URL
     VlekUrl,
+
+    /// Show the VLEK hashsticks download URL
+    HashsticksURL,
 
     /// Show the platform's firmware version
     Version,
@@ -48,6 +51,7 @@ pub fn cmd(show: Show) -> Result<()> {
             println!("{}", url);
         }
         Show::VlekUrl => println!("{}", vek_url(Endorsement::Vlek)?),
+        Show::HashsticksURL => println!("{}", vlek_hashsticks_url()?),
         Show::Version => println!("{}.{}", status.version.0, status.version.1),
     }
 
