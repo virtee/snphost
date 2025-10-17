@@ -8,6 +8,7 @@ mod processor;
 mod show;
 
 mod ok;
+mod vlek_load;
 
 use cert::{export, fetch, import, verify};
 
@@ -56,6 +57,9 @@ enum SnpHostCmd {
 
     /// Commit current firmware and TCB versions to PSP
     Commit,
+
+    /// Load a VLEK to the system.
+    VlekLoad(vlek_load::VlekLoad),
 }
 
 // Commit command
@@ -98,6 +102,7 @@ fn main() -> Result<()> {
         SnpHostCmd::Verify(verify) => verify::cmd(verify, snphost.quiet),
         SnpHostCmd::Fetch(fetch) => fetch::cmd(fetch),
         SnpHostCmd::Commit => commit::cmd(),
+        SnpHostCmd::VlekLoad(load) => vlek_load::cmd(load),
     };
 
     if !snphost.quiet {
