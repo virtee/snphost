@@ -12,6 +12,7 @@
   - [7. commit](#7-commit)
   - [8. config](#8-config)
   - [9. verify](#9-verify)
+  - [10. vlek-load](#10-vlek-load)
 - [Building](#building)
   - [Ubuntu Dependencies](#ubuntu-dependencies)
   - [RHEL and Compatible Distributions Dependencies](#rhel-and-compatible-distributions-dependencies)
@@ -271,16 +272,52 @@ snphost config reset
 
 ### 9. `verify`
 
-Reads the certificates in a directory and verifies the certificate chain, ensuring its integrity and authenticity. This command is essential for validating the trustworthiness of the certificates that can be then passed to complete attestation.
+Verify components that can be used in different SNP attestation workflows.
+
+**Usage:**
+```sh
+snphost verify <subcommand>
+```
+
+**Subcommands:**
+
+#### 1. `certs`
+Verifies a certificate chain to make sure the correct signatures are applied to each certificate in the chain.
 
 **Usage:**
 ```bash
-snphost verify DIR-PATH
+snphost verify certs DIR-PATH
 ```
 
 **Example:**
 ```bash
 snphost verify ./certs
+```
+
+#### 2.  `vlek-hashtick`
+Verifies thet the TCB values in a vlek-hashstick are valid. This let's a user know that the provided hashstick is valid before trying to loaded in the system.
+
+**Usage:**
+```bash
+snphost verify vlek-hashtick HASHSTICK-PATH
+```
+
+**Example:**
+```bash
+snphost verify vlek-hashtick hashstick.bin
+```
+
+### 10. `vlek-load`
+Loads a vlek-hashstick binary into the system so that users can do attestation with a valid VLEK.
+
+**Usage:**
+```bash
+snphost vlek-load HASHSTICK-FILE
+```
+
+**Example:**
+```bash
+snphost vlek-load hashstick.bin
 ```
 
 ## Building
@@ -469,6 +506,26 @@ qemu-system-x86_64 \
 ```
 
 The certificates can now be retrieved in the guest using extended attestation.
+
+---
+
+### Setting up a VLEK
+
+This flow shows how a user would set-up their system to use a VLEK from the host side using the snphost tool:
+
+```bash
+### Request the vlek hashstick
+### This will place the binary hashsticks file in the hashsticks-dir
+snphost fetch hashsticks ./hashsticks-dir ./client-cert.pem ./client.key
+
+### (Optional) Verfiy the hashstick
+snphost verify vlek-hashstick ./hashsticks-dir/hashsticks
+
+### Load the hashstick
+snphost vlek-load ./hashsticks-dir/hashsticks
+```
+*Note: In order to complete this process, the user needs to register their machines with AMD in order for AMD to generate a VLEK seed for their servers and then provide them with the appropriate client key and certificate. Please reach out to one of our maintainers to point you in the right direction for this set-up process*
+
 
 ## Reporting Bugs
 
