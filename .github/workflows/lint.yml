@@ -27,5 +27,5 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-          toolchain: 1.80.0
+          toolchain: 1.85.0
       - run: cargo clippy --locked --all-targets -- -D clippy::all -D unused_imports -D warnings
