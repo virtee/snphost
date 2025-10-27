@@ -132,24 +132,30 @@ COMMANDS
  options:
     -h, --help          Show a help message
 
-*snphost verify*::
-	usage: snphost verify DIR-PATH
+*snphost verify certs*::
+	usage: snphost verify certs DIR-PATH
 
-        This command verifies the full SEV-SNP/CA certificate chain.
-        It will use the ask,ark, and vek (vcek or vlek) certificates that are
-        stored in the provided directory. If both the vlek and vcek are present,
-        then the tool will use the vlek by default.
+        This command verifies the full SEV-SNP certificate authority (CA) chain using the certificates stored in the specified directory.
+        There are two possible CA chains that can be verified:
+        The VCEK chain: ark, ask, vcek.
+        Or the VLEK chain: ark, asvk, vlek.
+        If both chains are present, the tool will default to verifying the VLEK chain.
+        The certificates mus be named as one of the following: ark, ask, asvk, vlek, vcek.
+        Followed by the format in which their stored (cert.pem or cert.der).
+        Only PEM and DER formats are supported.
 
  options:
     -h, --help          Show a help message
 
-*snphost fetch ca*::
-	usage: snphost fetch ca [ der, pem ] DIR-PATH
+*snphost verify vlek-hashstick*::
+	usage: snphost verify vlek-hashstick HASHSTICK-PATH
 
-        This command fetches the host system's CA certificate chain and writes
-        the encoded certificates to the directory at path DIR-PATH. Users must
-        specify which format they would like the certificate to be encoded
-        in (DER or PEM).
+        This command verifies the provided VLEK hashstick against the current system configuration.
+        There are 2 verifications the hashstick needs to pass before being loaded.
+        One relates to the authentication of the actual wrapped vlek content, but this authentication can only be done at fw level.H15
+        The other is the matching the reported TCB version in the VLEK vs the one in the system.
+        This command compares the TCB version in the hashstick against the TCB version in the system, making sure these fields match.
+        Once the TCB is verified the user can load the vlek hashstick using the vlek-load command.
 
  options:
     -h, --help          Show a help message
@@ -176,6 +182,17 @@ COMMANDS
  options:
     -h, --help          Show a help message
 
+*snphost vlek-load*::
+	usage: snphost vlek-load $HASHSTICK-FILE
+
+        This command attempts to load the provided VLEK-HASHSTICK into the system.
+        When requesting a VLEK from the KDS, the user should receive both a VLEK certificate and a Wrapped Hashtick.
+        This command uses the hashstick file to initiate the load process.
+        If the hashstick fails verification, the command will return an error.
+        Users are encouraged to pre-verify the hashstick using the 'verify vlek-hashstick' command.
+
+ options:
+    -h, --help          Show a help message
 
 REPORTING BUGS
 --------------
