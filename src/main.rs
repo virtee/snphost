@@ -13,7 +13,7 @@ mod vlek_load;
 use cert::{export, fetch, import, verify};
 
 use anyhow::{Context, Result};
-use clap::{arg, Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use sev::firmware::host::*;
 
 #[derive(Parser)]
