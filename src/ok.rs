@@ -185,7 +185,7 @@ fn collect_tests() -> Vec<Test> {
                     run: Box::new(|| {
                         let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                        let stat = if ((res.eax & 0x1) << 1) != 0 {
+                        let stat = if (res.eax & (0x1 << 1)) != 0 {
                             TestState::Pass
                         } else {
                             TestState::Fail
@@ -210,7 +210,7 @@ fn collect_tests() -> Vec<Test> {
                             run: Box::new(|| {
                                 let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                                let stat = if ((res.eax & 0x1) << 3) != 0 {
+                                let stat = if (res.eax & (0x1 << 3)) != 0 {
                                     TestState::Pass
                                 } else {
                                     TestState::Fail
@@ -241,7 +241,7 @@ fn collect_tests() -> Vec<Test> {
                             run: Box::new(|| {
                                 let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                                let stat = if ((res.eax & 0x1) << 4) != 0 {
+                                let stat = if (res.eax & (0x1 << 4)) != 0 {
                                     TestState::Pass
                                 } else {
                                     TestState::Fail
@@ -260,7 +260,7 @@ fn collect_tests() -> Vec<Test> {
                                     run: Box::new(|| {
                                         let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                                        let stat = if ((res.eax & 0x1) << 5) != 0 {
+                                        let stat = if (res.eax & (0x1 << 5)) != 0 {
                                             TestState::Pass
                                         } else {
                                             TestState::Fail
@@ -404,7 +404,7 @@ fn collect_tests() -> Vec<Test> {
                     run: Box::new(|| {
                         let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                        let msr_flag = if ((res.eax & 0x1) << 2) != 0 {
+                        let msr_flag = if (res.eax & (0x1 << 2)) != 0 {
                             "ENABLED".green()
                         } else {
                             "DISABLED".yellow()
