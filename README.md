@@ -15,8 +15,8 @@
   - [10. vlek-load](#10-vlek-load)
 - [Building](#building)
   - [Ubuntu Dependencies](#ubuntu-dependencies)
-  - [RHEL and Compatible Distributions Dependencies](#rhel-and-compatible-distributions-dependencies)
-  - [openSUSE and Compatible Distributions Dependencies](#opensuse-and-compatible-distributions-dependencies)
+  - [RHEL and its compatible distributions Dependencies](#rhel-and-its-compatible-distributions-dependencies)
+  - [openSUSE and its compatible distributions Dependencies](#opensuse-and-its-compatible-distributions-dependencies)
 - [Common Workflows](#common-workflows)
 - [Reporting Bugs](#reporting-bugs)
 
