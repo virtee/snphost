@@ -11,9 +11,63 @@ use std::{
     str::from_utf8,
 };
 
+use clap::{Args, ValueEnum};
 use colorful::*;
 
 use msru::{Accessor, Msr};
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Verbosity {
+    Default,
+    Short,
+    Verbose,
+}
+
+#[derive(ValueEnum, Clone, Copy, PartialEq, Eq)]
+enum OutputFormat {
+    Default,
+    Json,
+}
+
+#[derive(Args, Clone)]
+pub struct Ok {
+    /// Show only failures with summary counts
+    #[arg(short, long, hide = true, group = "verbosity")]
+    short: bool,
+
+    /// Show detailed test descriptions grouped by category
+    #[arg(short, long, hide = true, group = "verbosity")]
+    verbose: bool,
+
+    /// Controls how test results are rendered
+    #[arg(short, long, hide = true, value_enum, default_value_t = OutputFormat::Default)]
+    output: OutputFormat,
+}
+
+impl Ok {
+    fn verbosity(&self) -> Verbosity {
+        if self.verbose {
+            Verbosity::Verbose
+        } else if self.short {
+            Verbosity::Short
+        } else {
+            Verbosity::Default
+        }
+    }
+
+    fn output_format(&self) -> OutputFormat {
+        self.output
+    }
+}
+
+/// Accumulated result entry for post-processing by non-default renderers.
+#[allow(dead_code)]
+struct TestResultEntry {
+    name: String,
+    status: TestState,
+    message: Option<String>,
+    level: usize,
+}
 
 type TestFn = dyn Fn() -> TestResult;
 
@@ -35,7 +89,7 @@ struct TestResult {
     mesg: Option<String>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum TestState {
     Pass,
     Skip,
@@ -477,10 +531,21 @@ fn collect_tests() -> Vec<Test> {
 
 const INDENT: usize = 2;
 
-pub fn cmd(quiet: bool) -> Result<()> {
+pub fn cmd(quiet: bool, args: Ok) -> Result<()> {
     let tests = collect_tests();
+    let _verbosity = args.verbosity();
+    let _output_format = args.output_format();
 
-    if run_test(&tests, 0, quiet, SEV_MASK | ES_MASK | SNP_MASK) {
+    let mut entries: Vec<TestResultEntry> = Vec::new();
+    let passed = run_test(
+        &tests,
+        0,
+        quiet,
+        SEV_MASK | ES_MASK | SNP_MASK,
+        &mut entries,
+    );
+
+    if passed {
         Ok(())
     } else {
         Err(anyhow::anyhow!(
@@ -489,27 +554,41 @@ pub fn cmd(quiet: bool) -> Result<()> {
     }
 }
 
-fn run_test(tests: &[Test], level: usize, quiet: bool, mask: usize) -> bool {
+fn run_test(
+    tests: &[Test],
+    level: usize,
+    quiet: bool,
+    mask: usize,
+    entries: &mut Vec<TestResultEntry>,
+) -> bool {
     let mut passed = true;
 
     for t in tests {
         // Skip tests that aren't included in the specified generation.
         if (t.gen_mask & mask) != t.gen_mask {
             test_gen_not_included(t, level, quiet);
+            accumulate_skip(std::slice::from_ref(t), level, entries);
             continue;
         }
 
         let res = (t.run)();
         emit_result(&res, level, quiet);
+        entries.push(TestResultEntry {
+            name: t.name.to_string(),
+            status: res.stat,
+            message: res.mesg.clone(),
+            level,
+        });
         match res.stat {
             TestState::Pass => {
-                if !run_test(&t.sub, level + INDENT, quiet, mask) {
+                if !run_test(&t.sub, level + INDENT, quiet, mask, entries) {
                     passed = false;
                 }
             }
             TestState::Fail => {
                 passed = false;
                 emit_skip(&t.sub, level + INDENT, quiet);
+                accumulate_skip(&t.sub, level + INDENT, entries);
             }
             // Skipped tests are marked as skip before recursing. They are just emitted and not actually processed.
             TestState::Skip => unreachable!(),
@@ -517,6 +596,19 @@ fn run_test(tests: &[Test], level: usize, quiet: bool, mask: usize) -> bool {
     }
 
     passed
+}
+
+/// Accumulate tests as skipped (recursive, includes subtests)
+fn accumulate_skip(tests: &[Test], level: usize, entries: &mut Vec<TestResultEntry>) {
+    for t in tests {
+        entries.push(TestResultEntry {
+            name: t.name.to_string(),
+            status: TestState::Skip,
+            message: None,
+            level,
+        });
+        accumulate_skip(&t.sub, level + INDENT, entries);
+    }
 }
 
 fn emit_result(res: &TestResult, level: usize, quiet: bool) {

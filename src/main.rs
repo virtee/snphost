@@ -42,7 +42,7 @@ enum SnpHostCmd {
     Import(import::Import),
 
     /// Probe system for SEV-SNP support
-    Ok,
+    Ok(ok::Ok),
 
     /// Modify the SNP configuration
     #[command(subcommand)]
@@ -98,7 +98,7 @@ fn main() -> Result<()> {
         SnpHostCmd::Show(show) => show::cmd(show),
         SnpHostCmd::Export(export) => export::cmd(export),
         SnpHostCmd::Import(import) => import::cmd(import),
-        SnpHostCmd::Ok => ok::cmd(snphost.quiet),
+        SnpHostCmd::Ok(args) => ok::cmd(snphost.quiet, args),
         SnpHostCmd::Config(subcmd) => config::cmd(subcmd),
         SnpHostCmd::Verify(verify) => verify::cmd(verify, snphost.quiet),
         SnpHostCmd::Fetch(fetch) => fetch::cmd(fetch),
