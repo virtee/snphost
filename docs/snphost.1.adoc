@@ -67,7 +67,8 @@ COMMANDS
         related capabilities on the host and emits the results.
 
  options:
-    -h, --help          Show a help message
+  -s, --short  Show only failures with summary counts
+  -h, --help   Show a help message.
 
 *snphost commit*::
 	usage: snphost commit
