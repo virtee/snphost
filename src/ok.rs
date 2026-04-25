@@ -11,9 +11,44 @@ use std::{
     str::from_utf8,
 };
 
+use clap::Args;
 use colorful::*;
 
 use msru::{Accessor, Msr};
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Verbosity {
+    Default,
+    Short,
+}
+
+#[derive(Args, Clone)]
+pub struct Ok {
+    /// Show only failures with summary counts
+    #[arg(short, long)]
+    short: bool,
+}
+
+impl Ok {
+    fn verbosity(&self) -> Verbosity {
+        if self.short {
+            Verbosity::Short
+        } else {
+            Verbosity::Default
+        }
+    }
+}
+
+struct TestResultEntry<'a> {
+    test: &'a Test,
+    message: Option<String>,
+}
+
+struct TestResults<'a> {
+    passed: Vec<TestResultEntry<'a>>,
+    failed: Vec<TestResultEntry<'a>>,
+    skipped: Vec<TestResultEntry<'a>>,
+}
 
 type TestFn = dyn Fn() -> TestResult;
 
@@ -35,7 +70,7 @@ struct TestResult {
     mesg: Option<String>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum TestState {
     Pass,
     Skip,
@@ -477,10 +512,29 @@ fn collect_tests() -> Vec<Test> {
 
 const INDENT: usize = 2;
 
-pub fn cmd(quiet: bool) -> Result<()> {
+pub fn cmd(quiet: bool, args: Ok) -> Result<()> {
     let tests = collect_tests();
+    let verbosity = args.verbosity();
+    let suppress_print = quiet || verbosity != Verbosity::Default;
 
-    if run_test(&tests, 0, quiet, SEV_MASK | ES_MASK | SNP_MASK) {
+    let mut results = TestResults {
+        passed: Vec::new(),
+        failed: Vec::new(),
+        skipped: Vec::new(),
+    };
+    let passed = run_test(
+        &tests,
+        0,
+        suppress_print,
+        SEV_MASK | ES_MASK | SNP_MASK,
+        &mut results,
+    );
+
+    if !quiet && verbosity == Verbosity::Short {
+        render_short(&results);
+    }
+
+    if passed {
         Ok(())
     } else {
         Err(anyhow::anyhow!(
@@ -489,27 +543,41 @@ pub fn cmd(quiet: bool) -> Result<()> {
     }
 }
 
-fn run_test(tests: &[Test], level: usize, quiet: bool, mask: usize) -> bool {
+fn run_test<'a>(
+    tests: &'a [Test],
+    level: usize,
+    quiet: bool,
+    mask: usize,
+    results: &mut TestResults<'a>,
+) -> bool {
     let mut passed = true;
 
     for t in tests {
         // Skip tests that aren't included in the specified generation.
         if (t.gen_mask & mask) != t.gen_mask {
             test_gen_not_included(t, level, quiet);
+            accumulate_skip(std::slice::from_ref(t), results);
             continue;
         }
 
         let res = (t.run)();
         emit_result(&res, level, quiet);
+        let entry = TestResultEntry {
+            test: t,
+            message: res.mesg.clone(),
+        };
         match res.stat {
             TestState::Pass => {
-                if !run_test(&t.sub, level + INDENT, quiet, mask) {
+                results.passed.push(entry);
+                if !run_test(&t.sub, level + INDENT, quiet, mask, results) {
                     passed = false;
                 }
             }
             TestState::Fail => {
+                results.failed.push(entry);
                 passed = false;
                 emit_skip(&t.sub, level + INDENT, quiet);
+                accumulate_skip(&t.sub, results);
             }
             // Skipped tests are marked as skip before recursing. They are just emitted and not actually processed.
             TestState::Skip => unreachable!(),
@@ -517,6 +585,48 @@ fn run_test(tests: &[Test], level: usize, quiet: bool, mask: usize) -> bool {
     }
 
     passed
+}
+
+fn accumulate_skip<'a>(tests: &'a [Test], results: &mut TestResults<'a>) {
+    for t in tests {
+        results.skipped.push(TestResultEntry {
+            test: t,
+            message: None,
+        });
+        accumulate_skip(&t.sub, results);
+    }
+}
+
+fn render_short(results: &TestResults) {
+    if !results.failed.is_empty() {
+        println!("{}", "Failures:".red());
+        for e in &results.failed {
+            let msg = match &e.message {
+                Some(m) => format!(": {}", m),
+                None => String::new(),
+            };
+            println!("[ {:^4} ] - {}{}", "FAIL".red(), e.test.name, msg);
+        }
+    }
+
+    if !results.skipped.is_empty() {
+        println!("\n{}:", "SKIPPED".yellow());
+        for s in &results.skipped {
+            println!("[ {:^4} ] - {}", "SKIP".yellow(), s.test.name);
+        }
+    }
+
+    let total = results.passed.len() + results.failed.len() + results.skipped.len();
+    println!(
+        "\n{} tests: {} passed, {} failed, {} skipped",
+        total,
+        results.passed.len(),
+        results.failed.len(),
+        results.skipped.len(),
+    );
+    if results.failed.is_empty() {
+        println!("{}", "All tests passed.".green());
+    }
 }
 
 fn emit_result(res: &TestResult, level: usize, quiet: bool) {
