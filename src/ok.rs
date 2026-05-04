@@ -39,17 +39,6 @@ impl Ok {
     }
 }
 
-struct TestResultEntry<'a> {
-    test: &'a Test,
-    message: Option<String>,
-}
-
-struct TestResults<'a> {
-    passed: Vec<TestResultEntry<'a>>,
-    failed: Vec<TestResultEntry<'a>>,
-    skipped: Vec<TestResultEntry<'a>>,
-}
-
 type TestFn = dyn Fn() -> TestResult;
 
 // SEV generation-specific bitmasks.
@@ -68,6 +57,11 @@ struct TestResult {
     name: String,
     stat: TestState,
     mesg: Option<String>,
+}
+
+struct TestResultNode {
+    result: TestResult,
+    sub: Vec<TestResultNode>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -515,25 +509,17 @@ const INDENT: usize = 2;
 pub fn cmd(quiet: bool, args: Ok) -> Result<()> {
     let tests = collect_tests();
     let verbosity = args.verbosity();
-    let suppress_print = quiet || verbosity != Verbosity::Default;
 
-    let mut results = TestResults {
-        passed: Vec::new(),
-        failed: Vec::new(),
-        skipped: Vec::new(),
-    };
-    let passed = run_test(
-        &tests,
-        0,
-        suppress_print,
-        SEV_MASK | ES_MASK | SNP_MASK,
-        &mut results,
-    );
+    let results = run_test(&tests, SEV_MASK | ES_MASK | SNP_MASK);
 
-    if !quiet && verbosity == Verbosity::Short {
-        render_short(&results);
+    if !quiet {
+        match verbosity {
+            Verbosity::Default => render_default(&results, 0),
+            Verbosity::Short => render_short(&results),
+        }
     }
 
+    let passed = all_passed(&results);
     if passed {
         Ok(())
     } else {
@@ -543,146 +529,122 @@ pub fn cmd(quiet: bool, args: Ok) -> Result<()> {
     }
 }
 
-fn run_test<'a>(
-    tests: &'a [Test],
-    level: usize,
-    quiet: bool,
-    mask: usize,
-    results: &mut TestResults<'a>,
-) -> bool {
-    let mut passed = true;
+fn run_test(tests: &[Test], mask: usize) -> Vec<TestResultNode> {
+    let mut results = Vec::new();
 
     for t in tests {
-        // Skip tests that aren't included in the specified generation.
-        if (t.gen_mask & mask) != t.gen_mask {
-            test_gen_not_included(t, level, quiet);
-            accumulate_skip(std::slice::from_ref(t), results);
-            continue;
-        }
+        let node = if (t.gen_mask & mask) != t.gen_mask {
+            // Test doesn't match generation mask - skip it and all children
+            create_skip_node(t)
+        } else {
+            // Run the test
+            let res = (t.run)();
 
-        let res = (t.run)();
-        emit_result(&res, level, quiet);
-        let entry = TestResultEntry {
-            test: t,
-            message: res.mesg.clone(),
-        };
-        match res.stat {
-            TestState::Pass => {
-                results.passed.push(entry);
-                if !run_test(&t.sub, level + INDENT, quiet, mask, results) {
-                    passed = false;
-                }
-            }
-            TestState::Fail => {
-                results.failed.push(entry);
-                passed = false;
-                emit_skip(&t.sub, level + INDENT, quiet);
-                accumulate_skip(&t.sub, results);
-            }
-            // Skipped tests are marked as skip before recursing. They are just emitted and not actually processed.
-            TestState::Skip => unreachable!(),
-        }
-    }
-
-    passed
-}
-
-fn accumulate_skip<'a>(tests: &'a [Test], results: &mut TestResults<'a>) {
-    for t in tests {
-        results.skipped.push(TestResultEntry {
-            test: t,
-            message: None,
-        });
-        accumulate_skip(&t.sub, results);
-    }
-}
-
-fn render_short(results: &TestResults) {
-    if !results.failed.is_empty() {
-        println!("{}", "Failures:".red());
-        for e in &results.failed {
-            let msg = match &e.message {
-                Some(m) => format!(": {}", m),
-                None => String::new(),
+            let sub = match res.stat {
+                TestState::Pass => run_test(&t.sub, mask),
+                TestState::Fail => create_skip_nodes(&t.sub),
+                TestState::Skip => unreachable!(),
             };
-            println!("[ {:^4} ] - {}{}", "FAIL".red(), e.test.name, msg);
-        }
+
+            TestResultNode { result: res, sub }
+        };
+
+        results.push(node);
     }
 
-    if !results.skipped.is_empty() {
-        println!("\n{}:", "SKIPPED".yellow());
-        for s in &results.skipped {
-            println!("[ {:^4} ] - {}", "SKIP".yellow(), s.test.name);
-        }
-    }
+    results
+}
 
-    let total = results.passed.len() + results.failed.len() + results.skipped.len();
-    println!(
-        "\n{} tests: {} passed, {} failed, {} skipped",
-        total,
-        results.passed.len(),
-        results.failed.len(),
-        results.skipped.len(),
-    );
-    if results.failed.is_empty() {
-        println!("{}", "All tests passed.".green());
+fn create_skip_node(test: &Test) -> TestResultNode {
+    TestResultNode {
+        result: TestResult {
+            name: test.name.to_string(),
+            stat: TestState::Skip,
+            mesg: None,
+        },
+        sub: create_skip_nodes(&test.sub),
     }
 }
 
-fn emit_result(res: &TestResult, level: usize, quiet: bool) {
-    if !quiet {
-        let msg = match &res.mesg {
+fn create_skip_nodes(tests: &[Test]) -> Vec<TestResultNode> {
+    tests.iter().map(create_skip_node).collect()
+}
+
+fn all_passed(results: &[TestResultNode]) -> bool {
+    results.iter().all(|n| {
+        (n.result.stat == TestState::Pass || n.result.stat == TestState::Skip) && all_passed(&n.sub)
+    })
+}
+
+fn render_default(results: &[TestResultNode], level: usize) {
+    for node in results {
+        let msg = match &node.result.mesg {
             Some(m) => format!(": {}", m),
             None => "".to_string(),
         };
         println!(
             "[ {:^4} ] {:width$}- {}{}",
-            format!("{}", res.stat),
+            format!("{}", node.result.stat),
             "",
-            res.name,
+            node.result.name,
             msg,
             width = level
-        )
-    }
-}
-
-fn test_gen_not_included(test: &Test, level: usize, quiet: bool) {
-    if !quiet {
-        let tr_skip = TestResult {
-            name: test.name.to_string(),
-            stat: TestState::Skip,
-            mesg: None,
-        };
-
-        println!(
-            "[ {:^4} ] {:width$}- {}",
-            format!("{}", tr_skip.stat),
-            "",
-            tr_skip.name,
-            width = level
         );
-        emit_skip(&test.sub, level + INDENT, quiet);
+        render_default(&node.sub, level + INDENT);
     }
 }
 
-fn emit_skip(tests: &[Test], level: usize, quiet: bool) {
-    if !quiet {
-        for t in tests {
-            let tr_skip = TestResult {
-                name: t.name.to_string(),
-                stat: TestState::Skip,
-                mesg: None,
-            };
+fn render_short(results: &[TestResultNode]) {
+    let mut passed = Vec::new();
+    let mut failed = Vec::new();
+    let mut skipped = Vec::new();
 
-            println!(
-                "[ {:^4} ] {:width$}- {}",
-                format!("{}", tr_skip.stat),
-                "",
-                tr_skip.name,
-                width = level
-            );
-            emit_skip(&t.sub, level + INDENT, quiet);
+    flatten_results(results, &mut passed, &mut failed, &mut skipped);
+
+    if !failed.is_empty() {
+        println!("{}", "Failures:".red());
+        for e in &failed {
+            let msg = match &e.mesg {
+                Some(m) => format!(": {}", m),
+                None => String::new(),
+            };
+            println!("[ {:^4} ] - {}{}", "FAIL".red(), e.name, msg);
         }
+    }
+
+    if !skipped.is_empty() {
+        println!("\n{}:", "SKIPPED".yellow());
+        for s in &skipped {
+            println!("[ {:^4} ] - {}", "SKIP".yellow(), s.name);
+        }
+    }
+
+    let total = passed.len() + failed.len() + skipped.len();
+    println!(
+        "\n{} tests: {} passed, {} failed, {} skipped",
+        total,
+        passed.len(),
+        failed.len(),
+        skipped.len(),
+    );
+    if failed.is_empty() {
+        println!("{}", "All tests passed.".green());
+    }
+}
+
+fn flatten_results<'a>(
+    results: &'a [TestResultNode],
+    passed: &mut Vec<&'a TestResult>,
+    failed: &mut Vec<&'a TestResult>,
+    skipped: &mut Vec<&'a TestResult>,
+) {
+    for node in results {
+        match node.result.stat {
+            TestState::Pass => passed.push(&node.result),
+            TestState::Fail => failed.push(&node.result),
+            TestState::Skip => skipped.push(&node.result),
+        }
+        flatten_results(&node.sub, passed, failed, skipped);
     }
 }
 
