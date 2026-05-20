@@ -716,32 +716,20 @@ const INDENT: usize = 2;
 
 pub fn cmd(quiet: bool, args: Ok) -> Result<()> {
     let tests = collect_tests();
-    let verbosity = args.verbosity();
-
     let results = run_test(&tests, SEV_MASK | ES_MASK | SNP_MASK);
 
     if !quiet {
-        match verbosity {
+        match args.verbosity() {
             Verbosity::Default => render_default(&results, 0),
             Verbosity::Short => render_short(&results),
             Verbosity::Verbose => render_verbose(&results),
         }
     }
 
-    let passed = all_passed(&results);
-    if passed {
-        Ok(())
-    } else {
-        let msg = match verbosity {
-            Verbosity::Verbose => {
-                "One or more tests in snphost ok reported a failure"
-            }
-            Verbosity::Default | Verbosity::Short => {
-                "One or more tests in snphost ok reported a failure. Run with --verbose for detailed troubleshooting steps"
-            }
-        };
-        Err(anyhow::anyhow!(msg))
+    if !all_passed(&results) {
+        std::process::exit(1);
     }
+    Ok(())
 }
 
 fn run_test(tests: &[Test], mask: usize) -> Vec<TestResultNode> {
