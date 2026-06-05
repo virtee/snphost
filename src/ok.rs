@@ -11,8 +11,9 @@ use std::{
     str::from_utf8,
 };
 
-use clap::Args;
+use clap::{Args, ValueEnum};
 use colorful::*;
+use serde::{Serialize, Serializer};
 
 use msru::{Accessor, Msr};
 
@@ -21,6 +22,12 @@ enum Verbosity {
     Default,
     Short,
     Verbose,
+}
+
+#[derive(ValueEnum, Clone, Copy, PartialEq, Eq)]
+enum OutputFormat {
+    Default,
+    Json,
 }
 
 #[derive(Args, Clone)]
@@ -32,6 +39,10 @@ pub struct Ok {
     /// Show detailed test descriptions grouped by category with detected issues summary
     #[arg(short, long, conflicts_with = "short")]
     verbose: bool,
+
+    /// Controls how test results are rendered
+    #[arg(short, long, value_enum, default_value_t = OutputFormat::Default)]
+    output: OutputFormat,
 }
 
 impl Ok {
@@ -44,10 +55,15 @@ impl Ok {
             Verbosity::Default
         }
     }
+
+    fn output_format(&self) -> OutputFormat {
+        self.output
+    }
 }
 
 /// Category for grouping tests in verbose output
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 enum TestCategory {
     CpuSupport,
     CpuInfo,
@@ -127,6 +143,20 @@ enum TestState {
     Pass,
     Skip,
     Fail,
+}
+
+impl Serialize for TestState {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = match self {
+            TestState::Pass => "pass",
+            TestState::Skip => "skip",
+            TestState::Fail => "fail",
+        };
+        serializer.serialize_str(s)
+    }
 }
 
 enum SevGeneration {
@@ -719,10 +749,11 @@ pub fn cmd(quiet: bool, args: Ok) -> Result<()> {
     let results = run_test(&tests, SEV_MASK | ES_MASK | SNP_MASK);
 
     if !quiet {
-        match args.verbosity() {
-            Verbosity::Default => render_default(&results, 0),
-            Verbosity::Short => render_short(&results),
-            Verbosity::Verbose => render_verbose(&results),
+        match (args.output_format(), args.verbosity()) {
+            (OutputFormat::Json, _) => render_json(&results)?,
+            (OutputFormat::Default, Verbosity::Default) => render_default(&results, 0),
+            (OutputFormat::Default, Verbosity::Short) => render_short(&results),
+            (OutputFormat::Default, Verbosity::Verbose) => render_verbose(&results),
         }
     }
 
@@ -827,21 +858,18 @@ fn render_short(results: &[TestResultNode]) {
         }
     }
 
-    let total = passed.len() + failed.len() + skipped.len();
+    let counts = count_results(results);
     println!(
         "\n{} tests: {} passed, {} failed, {} skipped",
-        total,
-        passed.len(),
-        failed.len(),
-        skipped.len(),
+        counts.total, counts.passed, counts.failed, counts.skipped,
     );
     if failed.is_empty() {
         println!("{}", "All tests passed.".green());
     }
 }
 
-fn render_verbose(results: &[TestResultNode]) {
-    let categories = [
+fn organize_by_category(results: &[TestResultNode]) -> Vec<(TestCategory, Vec<&TestResultNode>)> {
+    let categories_order = [
         TestCategory::CpuSupport,
         TestCategory::CpuInfo,
         TestCategory::BiosConfigured,
@@ -860,16 +888,27 @@ fn render_verbose(results: &[TestResultNode]) {
         .filter(|node| node.result.stat != TestState::Skip)
         .collect();
 
-    for cat in &categories {
+    // Group tests by category
+    let mut categorized = Vec::new();
+    for cat in &categories_order {
         let cat_entries: Vec<_> = all_nodes
             .iter()
             .filter(|node| node.meta.category == *cat)
+            .copied()
             .collect();
 
-        if cat_entries.is_empty() {
-            continue;
+        if !cat_entries.is_empty() {
+            categorized.push((*cat, cat_entries));
         }
+    }
 
+    categorized
+}
+
+fn render_verbose(results: &[TestResultNode]) {
+    let categorized = organize_by_category(results);
+
+    for (cat, cat_entries) in &categorized {
         println!("\n=== {} ===", cat);
         for node in cat_entries {
             let status_colored = match node.result.stat {
@@ -895,9 +934,10 @@ fn render_verbose(results: &[TestResultNode]) {
         }
     }
 
-    // Collect failed tests
-    let failed_nodes: Vec<_> = all_nodes
+    // Collect failed tests from all categories
+    let failed_nodes: Vec<_> = categorized
         .iter()
+        .flat_map(|(_, nodes)| nodes.iter())
         .filter(|node| node.result.stat == TestState::Fail)
         .collect();
 
@@ -914,6 +954,143 @@ fn render_verbose(results: &[TestResultNode]) {
     } else {
         println!("\n{}", "No issues detected.".green());
     }
+
+    let counts = count_results(results);
+    println!(
+        "\n{} tests: {} passed, {} failed, {} skipped",
+        counts.total, counts.passed, counts.failed, counts.skipped,
+    );
+}
+
+fn strip_ansi(s: &str) -> String {
+    String::from_utf8_lossy(&strip_ansi_escapes::strip(s)).to_string()
+}
+
+/// Parse TCB version comparison messages into structured JSON.
+///
+/// **IMPORTANT**: This parser depends on the exact format of TCB messages
+/// generated in `snp_ioctl(SnpStatusTest::Tcb)`. If you modify the message
+/// format in that test, update this parser accordingly.
+///
+/// Expected format:
+/// ```text
+/// TCB versions match \n\n Platform TCB version: <display> \n Reported TCB version: <display>
+/// ```
+/// or
+/// ```text
+/// The TCB versions did NOT match \n\n Platform TCB version: <display> \n Reported TCB version: <display>
+/// ```
+fn parse_tcb_message(msg: &str) -> Option<serde_json::Value> {
+    // Parse TCB version messages into structured JSON
+    if !msg.contains("TCB version") {
+        return None;
+    }
+
+    let parse_tcb_fields = |section: &str| -> serde_json::Value {
+        let mut fields = serde_json::Map::new();
+        for line in section.lines() {
+            let line = line.trim();
+            // Skip the "TCB Version:" header
+            if line == "TCB Version:" || line.is_empty() {
+                continue;
+            }
+            if let Some((key, value)) = line.split_once(':') {
+                let key = key.trim().to_lowercase().replace(' ', "_");
+                let value = value.trim();
+                fields.insert(key, serde_json::json!(value));
+            }
+        }
+        serde_json::Value::Object(fields)
+    };
+
+    let parts: Vec<&str> = msg.split("Platform TCB version:").collect();
+    if parts.len() != 2 {
+        return None;
+    }
+
+    let status = parts[0].trim();
+    let remainder = parts[1];
+
+    let tcb_parts: Vec<&str> = remainder.split("Reported TCB version:").collect();
+    if tcb_parts.len() != 2 {
+        return None;
+    }
+
+    let platform = parse_tcb_fields(tcb_parts[0]);
+    let reported = parse_tcb_fields(tcb_parts[1]);
+
+    Some(serde_json::json!({
+        "match": status == "TCB versions match",
+        "platform_tcb_version": platform,
+        "reported_tcb_version": reported,
+    }))
+}
+
+fn render_json(results: &[TestResultNode]) -> Result<()> {
+    let mut all_nodes = Vec::new();
+    flatten_nodes(results, &mut all_nodes);
+
+    let all_nodes: Vec<_> = all_nodes
+        .into_iter()
+        .filter(|node| node.result.stat != TestState::Skip)
+        .collect();
+
+    let tests: Vec<_> = all_nodes
+        .iter()
+        .map(|node| {
+            let mut test = serde_json::json!({
+                "name": strip_ansi(&node.result.name),
+                "status": node.result.stat,
+                "category": node.meta.category,
+                "description": node.meta.description,
+            });
+
+            if let Some(ref msg) = node.result.mesg {
+                if let Some(structured) = parse_tcb_message(msg) {
+                    test["message"] = structured;
+                } else {
+                    test["message"] = serde_json::json!(strip_ansi(msg));
+                }
+            }
+
+            if node.result.stat == TestState::Fail {
+                let hint = effective_hint(&node.meta, &node.result.mesg);
+                if !hint.is_empty() {
+                    test["fix_hint"] = serde_json::json!(hint);
+                }
+            }
+
+            test
+        })
+        .collect();
+
+    let failures: Vec<_> = all_nodes
+        .iter()
+        .filter(|node| node.result.stat == TestState::Fail)
+        .map(|node| {
+            serde_json::json!({
+                "name": strip_ansi(&node.result.name),
+                "hint": effective_hint(&node.meta, &node.result.mesg),
+            })
+        })
+        .collect();
+
+    let counts = count_results(results);
+
+    let output = serde_json::json!({
+        "tests": tests,
+        "failures": failures,
+        "summary": {
+            "total": counts.total,
+            "passed": counts.passed,
+            "failed": counts.failed,
+            "skipped": counts.skipped
+        }
+    });
+
+    serde_json::to_writer_pretty(std::io::stdout(), &output)?;
+    println!();
+    Ok(())
 }
 
 fn flatten_nodes<'a>(results: &'a [TestResultNode], output: &mut Vec<&'a TestResultNode>) {
@@ -936,6 +1113,33 @@ fn flatten_results<'a>(
             TestState::Skip => skipped.push(&node.result),
         }
         flatten_results(&node.sub, passed, failed, skipped);
+    }
+}
+
+struct TestCounts {
+    passed: usize,
+    failed: usize,
+    skipped: usize,
+    total: usize,
+}
+
+fn count_results(results: &[TestResultNode]) -> TestCounts {
+    let mut passed = Vec::new();
+    let mut failed = Vec::new();
+    let mut skipped = Vec::new();
+
+    flatten_results(results, &mut passed, &mut failed, &mut skipped);
+
+    let passed_count = passed.len();
+    let failed_count = failed.len();
+    let skipped_count = skipped.len();
+    let total = passed_count + failed_count + skipped_count;
+
+    TestCounts {
+        passed: passed_count,
+        failed: failed_count,
+        skipped: skipped_count,
+        total,
     }
 }
 
@@ -1174,18 +1378,20 @@ fn snp_ioctl(test: SnpStatusTest) -> TestResult {
 
     match test {
         SnpStatusTest::Tcb => {
+            // NOTE: This message format is parsed by `parse_tcb_message()` for JSON output.
+            // If you change this format, update that parser as well.
             if status.platform_tcb_version == status.reported_tcb_version {
                 TestResult{
                             name: format!("{}", SnpStatusTest::Tcb),
                             stat: TestState::Pass,
-                            mesg: format!("TCB versions match \n\n Platform TCB version: {} \n Reported TCB version: {}", 
+                            mesg: format!("TCB versions match \n\n Platform TCB version: {} \n Reported TCB version: {}",
                                         status.platform_tcb_version, status.reported_tcb_version).into()
                         }
             } else {
                 TestResult {
                     name: format!("{}", SnpStatusTest::Tcb),
                     stat: TestState::Fail,
-                    mesg: format!("The TCB versions did NOT match \n\n Platform TCB version: {} \n Reported TCB version: {}", 
+                    mesg: format!("The TCB versions did NOT match \n\n Platform TCB version: {} \n Reported TCB version: {}",
                                     status.platform_tcb_version, status.reported_tcb_version).into(),
                 }
             }
