@@ -29,13 +29,13 @@ Quick reference for diagnosing and fixing `snphost ok` test failures.
 
 ## Test Categories
 
-| Technology | CPU Support | CPU Info | BIOS Configured | Platform Initialized | KVM Config | Compliance |
-|------------|-------------|----------|----------------------|---------------------|------------|------------|
-| **CPU & Platform** | [AMD Processor](#amd-processor)<br><br>[AMD EPYC Processor](#amd-epyc-processor) | [Physical Address Bits](#physical-address-bit-reduction)<br><br>[C-bit Position](#c-bit-position) | [Firmware Version](#firmware-version) | [/dev/sev Readable](#devsev-readable)<br><br>[/dev/sev Writable](#devsev-writable) | [KVM Support](#kvm-support) | [Memlock Limits](#memlock-limits) |
-| **SME** | [SME Support](#sme-support) | | [SME Enabled](#sme-enabled) | | | |
-| **SEV** | [SEV Support](#sev-support) | [Max Guests](#maximum-encrypted-guests)<br><br>[Page Flush MSR](#page-flush-msr-support) | [ASID Limits](#minimum-sev-only-asid) | [SEV Initialized](#sev-initialized) | [SEV Enabled in KVM](#sev-enabled-in-kvm) | |
-| **SEV-ES** | [SEV-ES Support](#sev-es-support) | | | [SEV-ES Initialized](#sev-es-initialized) | [SEV-ES Enabled in KVM](#sev-es-enabled-in-kvm) | |
-| **SEV-SNP** | [SEV-SNP Support](#sev-snp-support) | [VMPL Support](#vmpl-support--count) | [SNP Enabled](#snp-enabled)<br><br>[RMP Addresses](#rmp-addresses) | [SNP Initialized](#snp-initialized)<br><br>[RMP Initialized](#rmp-initialized) | [SEV-SNP Enabled in KVM](#sev-snp-enabled-in-kvm) | [Memory Alias Check](#memory-alias-check)<br><br>[TCB Comparison](#tcb-version-comparison) |
+| Technology | CPU Support | CPU Info | BIOS Configured | Platform Initialized | KVM Config | Compliance | Optional Features |
+|------------|-------------|----------|----------------------|---------------------|------------|------------|-------------------|
+| **CPU & Platform** | [AMD Processor](#amd-processor)<br><br>[AMD EPYC Processor](#amd-epyc-processor) | [Physical Address Bits](#physical-address-bit-reduction)<br><br>[C-bit Position](#c-bit-position) | [Firmware Version](#firmware-version) | [/dev/sev Readable](#devsev-readable)<br><br>[/dev/sev Writable](#devsev-writable) | [KVM Support](#kvm-support) | [Memlock Limits](#memlock-limits) | |
+| **SME** | [SME Support](#sme-support) | | [SME Enabled](#sme-enabled) | | | | |
+| **SEV** | [SEV Support](#sev-support) | [Max Guests](#maximum-encrypted-guests)<br><br>[Page Flush MSR](#page-flush-msr-support) | [ASID Limits](#minimum-sev-only-asid) | [SEV Initialized](#sev-initialized) | [SEV Enabled in KVM](#sev-enabled-in-kvm) | | |
+| **SEV-ES** | [SEV-ES Support](#sev-es-support) | | | [SEV-ES Initialized](#sev-es-initialized) | [SEV-ES Enabled in KVM](#sev-es-enabled-in-kvm) | | |
+| **SEV-SNP** | [SEV-SNP Support](#sev-snp-support) | [VMPL Support](#vmpl-support--count) | [SNP Enabled](#snp-enabled)<br><br>[RMP Addresses](#rmp-addresses) | [SNP Initialized](#snp-initialized)<br><br>[RMP Initialized](#rmp-initialized) | [SEV-SNP Enabled in KVM](#sev-snp-enabled-in-kvm) | [Memory Alias Check](#memory-alias-check)<br><br>[TCB Comparison](#tcb-version-comparison) | [Secure TSC](#secure-tsc) |
 
 **Column Descriptions:**
 - **CPU Support**: CPUID checks - does the processor have this feature?
@@ -537,6 +537,44 @@ sudo snphost config set-reported-tcb
 | FMC | Firmware Management Component (Turin+ only; None on older systems) |
 
 **Expected Mismatch:** If you intentionally set lower Reported TCB for backwards compatibility.
+
+---
+
+## Optional Features
+
+These features enhance SEV guests but are not required for SEV, SEV-ES, or SEV-SNP to function. `snphost ok` does not include these tests by default, but they can be included by running `snphost ok --features`.
+
+### Secure TSC
+
+**Tests:** Platform requirements for enabling the SecureTSC feature during VM launch is met.
+
+Hardware support: CPUID 0x8000001F EAX bit 8 indicates the chip is capable of supporting SecureTSC. This bit is introduced in series 7003 (Milan), but value is not guaranteed to be 1. In practice, 9004 (Genoa) is the first generation where SecureTSC is broadly expected to be available.
+
+Firmware support: There are no firmware requirements on host-side to be able to enable SecureTSC. However, there are two firmware commands needed for interaction with the SecureTSC-enabled guest.
+- MSG_TSC_INFO_REQ is a command that can be executed by the guest kernel to retrieve TSC_INFO. Currently is needed when booting a SecureTSC-enabled VM. This has been introduced prior to SEV firmware version 1.51.
+- SNP_TSC_INFO is a command that can be executed by the host kernel to retrieve TSC_INFO. Currently not called by the kernel, but may be needed for future functionality. This was introduced in SEV firmware version 1.56.
+
+Kernel support: Bit 9 of KVM's `sev_supported_vmsa_features` indicates the kernel supports SecureTSC as a configurable VMSA feature. To launch a SecureTSC-enabled VM, the VMM needs to set bit 9 in `vmsa_features` when calling `KVM_SEV_INIT2` ioctl used to initialize the SEV-SNP context for the VM.
+
+**Platform Requirements:**
+- AMD EPYC 9004 (Genoa) or newer
+- Firmware 1.51 or newer (for SEV-SNP enablement)
+- Linux kernel 6.18+ (host)
+
+**Check:**
+```bash
+# Verify kernel version
+uname -r  # Need 6.18+
+
+# Check KVM VMSA features bitmask
+sudo snphost ok --verbose
+```
+
+**References:** 
+
+[AMD64 Architecture Programmer's Manual, Vol 2, §15.36.18 (Rev 3.44)](https://docs.amd.com/v/u/en-US/24593_3.44_APM_Vol2)
+[AMD EPYC Processor Revision Guide, Erratum 1378: Secure TSC May Not Be Supported](https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/revision-guides/56683.pdf)
+[SEV Secure Nested Paging Firmware ABI Specification, Revision 1.58, Section 8.17](https://www.amd.com/content/dam/amd/en/documents/developer/56860.pdf)
 
 ---
 
