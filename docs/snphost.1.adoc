@@ -67,9 +67,13 @@ COMMANDS
         related capabilities on the host and emits the results.
 
  options:
-        -s, --short     Show only failures with summary counts
-        -v, --verbose   Show detailed test descriptions grouped by category with detected issues summary
-        -h, --help      Show a help message
+        -s, --short             Show only failures with summary counts
+        -v, --verbose           Show detailed test descriptions grouped by category with detected issues summary
+        -f, --features          Include optional feature tests (skipped by default)
+        -o, --output <OUTPUT>   Controls how test results are rendered. Supported formats:
+                                  default   Human-readable output (default)
+                                  json      Machine-readable JSON output
+        -h, --help              Show a help message
 
 *snphost commit*::
 	usage: snphost commit

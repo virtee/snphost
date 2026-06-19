@@ -40,6 +40,10 @@ pub struct Ok {
     #[arg(short, long, conflicts_with = "short")]
     verbose: bool,
 
+    /// Include optional feature tests (skipped by default)
+    #[arg(short, long)]
+    features: bool,
+
     /// Controls how test results are rendered
     #[arg(short, long, value_enum, default_value_t = OutputFormat::Default)]
     output: OutputFormat,
@@ -71,6 +75,8 @@ enum TestCategory {
     PlatformInitialized,
     KvmConfig,
     Compliance,
+    /// Features that enhance SEV guests but are not required for SEV, SEV-ES, or SEV-SNP.
+    OptionalFeatures,
 }
 
 impl fmt::Display for TestCategory {
@@ -82,6 +88,7 @@ impl fmt::Display for TestCategory {
             TestCategory::PlatformInitialized => write!(f, "Platform Initialized"),
             TestCategory::KvmConfig => write!(f, "KVM Config"),
             TestCategory::Compliance => write!(f, "Compliance"),
+            TestCategory::OptionalFeatures => write!(f, "Optional Features"),
         }
     }
 }
@@ -466,6 +473,46 @@ fn collect_tests() -> Vec<Test> {
                                     }],
                                 },
                                 Test {
+                                    name: "(Optional Feature) Secure TSC",
+                                    gen_mask: SNP_MASK,
+                                    run: Box::new(|| {
+                                        let res = unsafe { x86_64::__cpuid(0x8000_001f) };
+                                        let mut errors = Vec::new();
+
+                                        if (res.eax & (0x1 << 8)) == 0 {
+                                            errors.push(format!(
+                                                "SecureTSC bit 8 not set in CPUID 0x8000001F EAX: {:#010x}",
+                                                res.eax
+                                            ));
+                                        }
+
+                                        match kvm_get_vmsa_features() {
+                                            Ok(f) if (f & (1 << 9)) == 0 => errors.push(format!(
+                                                "SecureTSC bit 9 not set in KVM sev_supported_vmsa_features: {:#018x}",
+                                                f
+                                            )),
+                                            Err(e) => errors.push(e),
+                                            _ => {}
+                                        }
+
+                                        TestResult {
+                                            name: format!("({}) Secure TSC", TestCategory::OptionalFeatures),
+                                            stat: if errors.is_empty() { TestState::Pass } else { TestState::Fail },
+                                            mesg: Some(if errors.is_empty() {
+                                                "Configurable".to_string()
+                                            } else {
+                                                errors.join("; ")
+                                            }),
+                                        }
+                                    }),
+                                    meta: TestMetadata {
+                                        category: TestCategory::OptionalFeatures,
+                                        description: "Checks SecureTSC hardware support, and kernel support",
+                                        fix_hint: "Requires EPYC 9004+ CPU and kernel 6.18+ with sev_snp=1",
+                                    },
+                                    sub: vec![],
+                                },
+                                Test {
                                     name: "SEV-SNP",
                                     gen_mask: SNP_MASK,
                                     run: Box::new(snp_test),
@@ -746,7 +793,7 @@ const INDENT: usize = 2;
 
 pub fn cmd(quiet: bool, args: Ok) -> Result<()> {
     let tests = collect_tests();
-    let results = run_test(&tests, SEV_MASK | ES_MASK | SNP_MASK);
+    let results = run_test(&tests, SEV_MASK | ES_MASK | SNP_MASK, args.features);
 
     if !quiet {
         match (args.output_format(), args.verbosity()) {
@@ -763,10 +810,14 @@ pub fn cmd(quiet: bool, args: Ok) -> Result<()> {
     Ok(())
 }
 
-fn run_test(tests: &[Test], mask: usize) -> Vec<TestResultNode> {
+fn run_test(tests: &[Test], mask: usize, features: bool) -> Vec<TestResultNode> {
     let mut results = Vec::new();
 
     for t in tests {
+        if !features && t.meta.category == TestCategory::OptionalFeatures {
+            continue;
+        }
+
         let node = if (t.gen_mask & mask) != t.gen_mask {
             // Test doesn't match generation mask - skip it and all children
             create_skip_node(t)
@@ -775,7 +826,7 @@ fn run_test(tests: &[Test], mask: usize) -> Vec<TestResultNode> {
             let res = (t.run)();
 
             let sub = match res.stat {
-                TestState::Pass => run_test(&t.sub, mask),
+                TestState::Pass => run_test(&t.sub, mask, features),
                 TestState::Fail => create_skip_nodes(&t.sub),
                 TestState::Skip => unreachable!(),
             };
@@ -876,6 +927,7 @@ fn organize_by_category(results: &[TestResultNode]) -> Vec<(TestCategory, Vec<&T
         TestCategory::PlatformInitialized,
         TestCategory::KvmConfig,
         TestCategory::Compliance,
+        TestCategory::OptionalFeatures,
     ];
 
     // Flatten the tree structure into a list
@@ -1029,11 +1081,6 @@ fn parse_tcb_message(msg: &str) -> Option<serde_json::Value> {
 fn render_json(results: &[TestResultNode]) -> Result<()> {
     let mut all_nodes = Vec::new();
     flatten_nodes(results, &mut all_nodes);
-
-    let all_nodes: Vec<_> = all_nodes
-        .into_iter()
-        .filter(|node| node.result.stat != TestState::Skip)
-        .collect();
 
     let tests: Vec<_> = all_nodes
         .iter()
@@ -1201,6 +1248,44 @@ fn has_kvm_support() -> TestResult {
         stat,
         mesg: Some(mesg),
     }
+}
+
+fn kvm_get_vmsa_features() -> Result<u64, String> {
+    // _IOW(0xAE, 0xe2, struct kvm_device_attr) where struct is 24 bytes
+    // https://docs.kernel.org/virt/kvm/api.html
+    const KVM_GET_DEVICE_ATTR: u64 = 0x4018AEE2;
+    const KVM_X86_GRP_SEV: u32 = 1;
+    const KVM_X86_SEV_VMSA_FEATURES: u64 = 0;
+
+    let kvm = File::open("/dev/kvm").map_err(|e| format!("unable to open /dev/kvm: {}", e))?;
+
+    // Returns the kernel's sev_supported_vmsa_features bitmask.
+    // https://docs.kernel.org/virt/kvm/x86/amd-memory-encryption.html
+    // https://github.com/torvalds/linux/blob/master/arch/x86/include/uapi/asm/kvm.h
+    #[repr(C)]
+    struct KvmDeviceAttr {
+        flags: u32,
+        group: u32,
+        attr: u64,
+        addr: u64,
+    }
+
+    let mut val: u64 = 0;
+    let attr = KvmDeviceAttr {
+        flags: 0,
+        group: KVM_X86_GRP_SEV,
+        attr: KVM_X86_SEV_VMSA_FEATURES,
+        addr: &mut val as *mut u64 as u64,
+    };
+    let r = unsafe { libc::ioctl(kvm.as_raw_fd(), KVM_GET_DEVICE_ATTR, &attr) };
+    if r < 0 {
+        return Err(format!(
+            "KVM_GET_DEVICE_ATTR failed: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+
+    Ok(val)
 }
 
 fn sev_enabled_in_kvm(gen: SevGeneration) -> TestResult {
