@@ -26,7 +26,7 @@ is-it-maintained-open-issues = { repository = "virtee/snphost" }
 [dependencies]
 anyhow = "1"
 sev = { version = "7.1", features = ['openssl']}
-env_logger = "0.10"
+env_logger = "0.11"
 clap = { version = "4.5", features = [ "derive" ] }
 colorful = "0.2"
 libc = "0.2"
