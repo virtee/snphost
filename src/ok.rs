@@ -919,7 +919,9 @@ fn render_short(results: &[TestResultNode]) {
     }
 }
 
-fn organize_by_category(results: &[TestResultNode]) -> Vec<(TestCategory, Vec<&TestResultNode>)> {
+fn organize_by_category<'a>(
+    flattened_nodes: &[&'a TestResultNode],
+) -> Vec<(TestCategory, Vec<&'a TestResultNode>)> {
     let categories_order = [
         TestCategory::CpuSupport,
         TestCategory::CpuInfo,
@@ -930,22 +932,11 @@ fn organize_by_category(results: &[TestResultNode]) -> Vec<(TestCategory, Vec<&T
         TestCategory::OptionalFeatures,
     ];
 
-    // Flatten the tree structure into a list
-    let mut all_nodes = Vec::new();
-    flatten_nodes(results, &mut all_nodes);
-
-    // Filter out skipped tests
-    let all_nodes: Vec<_> = all_nodes
-        .into_iter()
-        .filter(|node| node.result.stat != TestState::Skip)
-        .collect();
-
-    // Group tests by category
     let mut categorized = Vec::new();
     for cat in &categories_order {
-        let cat_entries: Vec<_> = all_nodes
+        let cat_entries: Vec<_> = flattened_nodes
             .iter()
-            .filter(|node| node.meta.category == *cat)
+            .filter(|node| node.result.stat != TestState::Skip && node.meta.category == *cat)
             .copied()
             .collect();
 
@@ -958,7 +949,10 @@ fn organize_by_category(results: &[TestResultNode]) -> Vec<(TestCategory, Vec<&T
 }
 
 fn render_verbose(results: &[TestResultNode]) {
-    let categorized = organize_by_category(results);
+    let mut all_nodes = Vec::new();
+    flatten_nodes(results, &mut all_nodes);
+
+    let categorized = organize_by_category(&all_nodes);
 
     for (cat, cat_entries) in &categorized {
         println!("\n=== {} ===", cat);
@@ -986,11 +980,13 @@ fn render_verbose(results: &[TestResultNode]) {
         }
     }
 
-    // Collect failed tests from all categories
-    let failed_nodes: Vec<_> = categorized
+    let failed_nodes: Vec<_> = all_nodes
         .iter()
-        .flat_map(|(_, nodes)| nodes.iter())
-        .filter(|node| node.result.stat == TestState::Fail)
+        .filter(|n| n.result.stat == TestState::Fail)
+        .collect();
+    let skipped_nodes: Vec<_> = all_nodes
+        .iter()
+        .filter(|n| n.result.stat == TestState::Skip)
         .collect();
 
     if !failed_nodes.is_empty() {
@@ -1005,6 +1001,13 @@ fn render_verbose(results: &[TestResultNode]) {
         println!();
     } else {
         println!("\n{}", "No issues detected.".green());
+    }
+
+    if !skipped_nodes.is_empty() {
+        println!("\n{}:", "SKIPPED".yellow());
+        for s in &skipped_nodes {
+            println!("[ {:^4} ] - {}", "SKIP".yellow(), s.result.name);
+        }
     }
 
     let counts = count_results(results);
@@ -1084,6 +1087,7 @@ fn render_json(results: &[TestResultNode]) -> Result<()> {
 
     let tests: Vec<_> = all_nodes
         .iter()
+        .filter(|node| node.result.stat != TestState::Skip)
         .map(|node| {
             let mut test = serde_json::json!({
                 "name": strip_ansi(&node.result.name),
@@ -1122,11 +1126,18 @@ fn render_json(results: &[TestResultNode]) -> Result<()> {
         })
         .collect();
 
+    let skipped: Vec<_> = all_nodes
+        .iter()
+        .filter(|node| node.result.stat == TestState::Skip)
+        .map(|node| serde_json::json!(strip_ansi(&node.result.name)))
+        .collect();
+
     let counts = count_results(results);
 
     let output = serde_json::json!({
         "tests": tests,
         "failures": failures,
+        "skipped": skipped,
         "summary": {
             "total": counts.total,
             "passed": counts.passed,
