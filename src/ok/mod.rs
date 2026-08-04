@@ -487,9 +487,9 @@ fn collect_tests() -> Vec<Test> {
                                         }
 
                                         match kvm_get_vmsa_features() {
-                                            Ok(f) if (f & (1 << 9)) == 0 => errors.push(format!(
-                                                "SecureTSC bit 9 not set in KVM sev_supported_vmsa_features: {:#018x}",
-                                                f
+                                            Ok(features) if features & kvm::VmsaFeatures::SECURE_TSC.bits() == 0 => errors.push(format!(
+                                                "SecureTSC not set in KVM sev_supported_vmsa_features: {:#018x}",
+                                                features
                                             )),
                                             Err(e) => errors.push(e),
                                             _ => {}
