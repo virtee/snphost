@@ -2,7 +2,16 @@
 
 use std::{fs::File, os::unix::io::AsRawFd};
 
+use bitflags::bitflags;
+
 use super::{SevGeneration, TestResult, TestState};
+
+bitflags! {
+    #[derive(Debug)]
+    pub(super) struct VmsaFeatures: u64 {
+        const SECURE_TSC = 1 << 9;
+    }
+}
 
 pub(super) fn has_kvm_support() -> TestResult {
     let path = "/dev/kvm";
