@@ -512,6 +512,48 @@ fn collect_tests() -> Vec<Test> {
                                     },
                                     sub: vec![],
                                 },
+
+                                Test {
+                                    name: "(Optional Feature) Ciphertext Hiding",
+                                    gen_mask: SNP_MASK,
+                                    run: Box::new(|| match snp_platform_status() {
+                                            Ok(status) if !status.platform_policy.ciphertext_hiding_dram_cap() => {
+                                                TestResult {
+                                                    name: format!("({}) Ciphertext Hiding", TestCategory::OptionalFeatures),
+                                                    stat: TestState::Fail,
+                                                    mesg: Some("Ciphertext Hiding is unavailable".to_string()),
+                                                }
+                                            }
+                                            Ok(status) if !status.platform_policy.ciphertext_hiding_dram_en() => {
+                                                TestResult {
+                                                    name: format!("({}) Ciphertext Hiding", TestCategory::OptionalFeatures),
+                                                    stat: TestState::Fail,
+                                                    mesg: Some("Ciphertext Hiding is available, but not enabled".to_string()),
+                                                }
+                                            }
+                                            Ok(_) => TestResult {
+                                                name: format!("({}) Ciphertext Hiding", TestCategory::OptionalFeatures),
+                                                stat: TestState::Pass,
+                                                mesg: Some("Ciphertext Hiding is available and enabled".to_string()),
+                                            },
+                                            Err(e) => TestResult {
+                                                name: format!("({}) Ciphertext Hiding", TestCategory::OptionalFeatures),
+                                                stat: TestState::Fail,
+                                                mesg: Some(format!("{:#}", e)),
+                                            },
+                                            }
+                                    ),
+                                    meta: TestMetadata {
+                                        category: TestCategory::OptionalFeatures,
+                                        description: "Checks SNP platform status to verify ciphertext hiding support and enablement",
+                                        fix_hint: "- AMD EPYC 9005+\n\
+                                            - Enable in BIOS using the following setting to make the feature capable: AMD CBS → UMC Common Options → DDR RAS → ECC Configuration → CipherText Hiding Enable\n\
+                                            - Enable in kernel by adding the following parameter ciphertext_hiding_asids=<N> to kvm_amd kernel module.",
+                                    },
+
+                                    sub: vec![]
+                                },
+
                                 Test {
                                     name: "SEV-SNP",
                                     gen_mask: SNP_MASK,
@@ -975,7 +1017,8 @@ fn render_verbose(results: &[TestResultNode]) {
             }
             let hint_str = effective_hint(&node.meta, &node.result.mesg);
             if node.result.stat == TestState::Fail && !hint_str.is_empty() {
-                println!("           {} {}", "Recommended:".yellow(), hint_str);
+                let hint = hint_str.replace('\n', "\n                        ");
+                println!("           {} {}", "Recommended:".yellow(), hint);
             }
         }
     }
@@ -995,7 +1038,8 @@ fn render_verbose(results: &[TestResultNode]) {
             let hint_str = effective_hint(&node.meta, &node.result.mesg);
             println!("  {}. {} [FAIL]", i + 1, node.result.name);
             if !hint_str.is_empty() {
-                println!("     {} {}", "Hint:".blue(), hint_str);
+                let hint = hint_str.replace('\n', "\n           ");
+                println!("     {} {}", "Hint:".blue(), hint);
             }
         }
         println!();
