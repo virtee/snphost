@@ -35,7 +35,7 @@ Quick reference for diagnosing and fixing `snphost ok` test failures.
 | **SME** | [SME Support](#sme-support) | | [SME Enabled](#sme-enabled) | | | | |
 | **SEV** | [SEV Support](#sev-support) | [Max Guests](#maximum-encrypted-guests)<br><br>[Page Flush MSR](#page-flush-msr-support) | [ASID Limits](#minimum-sev-only-asid) | [SEV Initialized](#sev-initialized) | [SEV Enabled in KVM](#sev-enabled-in-kvm) | | |
 | **SEV-ES** | [SEV-ES Support](#sev-es-support) | | | [SEV-ES Initialized](#sev-es-initialized) | [SEV-ES Enabled in KVM](#sev-es-enabled-in-kvm) | | |
-| **SEV-SNP** | [SEV-SNP Support](#sev-snp-support) | [VMPL Support](#vmpl-support--count) | [SNP Enabled](#snp-enabled)<br><br>[RMP Addresses](#rmp-addresses) | [SNP Initialized](#snp-initialized)<br><br>[RMP Initialized](#rmp-initialized) | [SEV-SNP Enabled in KVM](#sev-snp-enabled-in-kvm) | [Memory Alias Check](#memory-alias-check)<br><br>[TCB Comparison](#tcb-version-comparison) | [Secure TSC](#secure-tsc) |
+| **SEV-SNP** | [SEV-SNP Support](#sev-snp-support) | [VMPL Support](#vmpl-support--count) | [SNP Enabled](#snp-enabled)<br><br>[RMP Addresses](#rmp-addresses) | [SNP Initialized](#snp-initialized)<br><br>[RMP Initialized](#rmp-initialized) | [SEV-SNP Enabled in KVM](#sev-snp-enabled-in-kvm) | [Memory Alias Check](#memory-alias-check)<br><br>[TCB Comparison](#tcb-version-comparison) | [Secure TSC](#secure-tsc)<br><br>[Ciphertext Hiding](#ciphertext-hiding) |
 
 **Column Descriptions:**
 - **CPU Support**: CPUID checks - does the processor have this feature?
@@ -575,6 +575,47 @@ sudo snphost ok --verbose
 [AMD64 Architecture Programmer's Manual, Vol 2, §15.36.18 (Rev 3.44)](https://docs.amd.com/v/u/en-US/24593_3.44_APM_Vol2)
 [AMD EPYC Processor Revision Guide, Erratum 1378: Secure TSC May Not Be Supported](https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/revision-guides/56683.pdf)
 [SEV Secure Nested Paging Firmware ABI Specification, Revision 1.58, Section 8.17](https://www.amd.com/content/dam/amd/en/documents/developer/56860.pdf)
+
+---
+
+### Ciphertext Hiding
+
+**Tests:** Platform support and enablement of ciphertext hiding for SNP guest private memory.
+
+Ciphertext hiding prevents disallowed host accesses to SNP guest private memory from reading ciphertext. Such reads return a constant default value (`0xff`) instead.
+
+Hardware and firmware support: `SNP_PLATFORM_STATUS` reports `CIPHERTEXT_HIDING_DRAM_CAP` when the platform is capable of ciphertext hiding. The test reports this as unavailable when the bit is clear.
+
+Kernel enablement: Set a nonzero `ciphertext_hiding_asids=<N>` parameter when loading `kvm_amd`. During `SEV_PLATFORM_INIT`, KVM passes this value to firmware as the maximum SNP ASID. Firmware sets `CIPHERTEXT_HIDING_DRAM_EN` only when ciphertext hiding is enabled through that initialization; `snphost ok --features` checks this bit as the end-to-end kernel and firmware enablement check.
+
+**Platform Requirements:**
+- AMD EPYC 9005+ processor
+- Enable the BIOS setting: AMD CBS → UMC Common Options → DDR RAS → ECC Configuration → CipherText Hiding Enable
+- A kernel with KVM ciphertext-hiding support
+- A nonzero `ciphertext_hiding_asids` value when loading `kvm_amd`
+
+**Check:**
+```bash
+# Include optional feature checks
+snphost ok --features --verbose
+
+# Confirm the configured ASID count (nonzero enables ciphertext hiding)
+cat /sys/module/kvm_amd/parameters/ciphertext_hiding_asids
+```
+
+**Enable:**
+```bash
+# Example: reserve 16 ASIDs for SNP guests and enable ciphertext hiding
+modprobe kvm_amd ciphertext_hiding_asids=16
+```
+
+The parameter partitions the joint SEV-ES/SEV-SNP ASID space. Increasing the SNP ASID allocation reduces the ASIDs available to SEV-ES guests; assigning all available ASIDs to SNP effectively disables SEV-ES.
+
+**References:**
+
+[SEV Secure Nested Paging Firmware ABI Specification, Revision 1.58, Section 8.5 SNP_PLATFORM_STATUS](https://www.amd.com/content/dam/amd/en/documents/developer/56860.pdf)
+[Linux KVM SEV ciphertext-hiding support](https://github.com/torvalds/linux/blob/master/arch/x86/kvm/svm/sev.c)
+[Linux kernel parameters: `kvm-amd.ciphertext_hiding_asids`](https://www.kernel.org/doc/html/latest/admin-guide/kernel-parameters.html)
 
 ---
 
