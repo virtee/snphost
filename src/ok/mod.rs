@@ -512,6 +512,54 @@ fn collect_tests() -> Vec<Test> {
                                     },
                                     sub: vec![],
                                 },
+
+                                Test {
+                                    name: "(Optional Feature): Ciphertext Hiding",
+                                    gen_mask: SNP_MASK,
+                                    run: Box::new(|| {
+                                        match snp_platform_status() {
+                                            Ok(status) =>{
+                                                if status.platform_policy.ciphertext_hiding_dram_cap() {
+                                                    if status.platform_policy.ciphertext_hiding_dram_en() {
+                                                        return TestResult {
+                                                            name: format!("({}) Ciphertext Hiding", TestCategory::OptionalFeatures),
+                                                            stat: TestState::Pass,
+                                                            mesg: Some("Ciphertext Hiding is available and enabled".to_string())
+                                                        }
+                                                    } else {
+                                                       return  TestResult {
+                                                            name: format!("({}) Ciphertext Hiding", TestCategory::OptionalFeatures),
+                                                            stat: TestState::Fail,
+                                                            mesg: Some("Ciphertext Hiding is available, but not enabled".to_string())
+                                                        }
+                                                    }
+                                                } else {
+                                                    return TestResult {
+                                                        name: format!("({}) Ciphertext Hiding", TestCategory::OptionalFeatures),
+                                                        stat: TestState::Fail,
+                                                        mesg: Some("Ciphertext Hiding is unavailable".to_string())
+                                                    }
+
+                                            }},
+
+                                            Err(e) => {
+                                                return TestResult {
+                                                    name: format!("({}) Ciphertext Hiding", TestCategory::OptionalFeatures),
+                                                    stat: TestState::Fail,
+                                                    mesg: Some(e.to_string())
+                                                }
+                                            }
+                                        }
+                                    }),
+                                    meta: TestMetadata {
+                                        category: TestCategory::OptionalFeatures,
+                                        description: "Checks SNP platform status to verify ciphertext hiding support and enablement",
+                                        fix_hint: "Requires EPYC 9005+ and ?",
+                                    },
+
+                                    sub: vec![]
+                                },
+
                                 Test {
                                     name: "SEV-SNP",
                                     gen_mask: SNP_MASK,
