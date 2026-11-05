@@ -13,7 +13,7 @@ pub enum Show {
     Identifier,
 
     /// Show the current platform and reported TCB version
-    Tcb,
+    Tcb(TcbArgs),
 
     /// Show the VCEK DER download URL
     VcekUrl,
@@ -26,6 +26,13 @@ pub enum Show {
 
     /// Show the platform's firmware version
     Version,
+}
+
+#[derive(Parser)]
+pub struct TcbArgs {
+    /// Controls how the TCB versions are rendered
+    #[arg(short, long, value_enum, default_value_t = OutputFormat::Default)]
+    output: OutputFormat,
 }
 
 pub fn cmd(show: Show) -> Result<()> {
@@ -41,10 +48,21 @@ pub fn cmd(show: Show) -> Result<()> {
 
             println!("{}", id);
         }
-        Show::Tcb => println!(
-            "Reported TCB: {}\nPlatform TCB: {}",
-            status.reported_tcb_version, status.platform_tcb_version
-        ),
+        Show::Tcb(args) => match args.output {
+            OutputFormat::Default => println!(
+                "Reported TCB: {}\nPlatform TCB: {}",
+                status.reported_tcb_version, status.platform_tcb_version
+            ),
+            OutputFormat::Json => {
+                let output = serde_json::json!({
+                    "reported_tcb": tcb_json(&status.reported_tcb_version),
+                    "platform_tcb": tcb_json(&status.platform_tcb_version),
+                });
+
+                serde_json::to_writer_pretty(std::io::stdout(), &output)?;
+                println!();
+            }
+        },
         Show::VcekUrl => {
             let url = vek_url(Endorsement::Vcek)?;
 
@@ -56,4 +74,15 @@ pub fn cmd(show: Show) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// JSON representation of a TCB version
+fn tcb_json(tcb: &TcbVersion) -> serde_json::Value {
+    serde_json::json!({
+        "fmc": tcb.fmc,
+        "bootloader": tcb.bootloader,
+        "tee": tcb.tee,
+        "snp_fw": tcb.snp,
+        "microcode": tcb.microcode,
+    })
 }

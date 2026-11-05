@@ -63,6 +63,13 @@ enum SnpHostCmd {
     VlekLoad(vlek_load::VlekLoad),
 }
 
+/// Output format for commands that support machine-readable output
+#[derive(ValueEnum, Clone, Copy, PartialEq, Eq)]
+enum OutputFormat {
+    Default,
+    Json,
+}
+
 // Commit command
 mod commit {
     use super::*;
