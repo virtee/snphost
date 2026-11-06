@@ -249,12 +249,25 @@ This command allows the user to change the config of the SNP platform. The user 
 
 **Usage:**
 ```sh
-snphost config set BOOTLOADER TEE SNP-FW MICROCODE MASK-CHIP [FMC]
+snphost config set [--tee TEE] [--snp-fw SNP-FW] [--mask-chip MASK-CHIP] [--bootloader BOOTLOADER] [--microcode MICROCODE] [--fmc FMC]
 ```
+
+Pass only the fields to change. Omitted fields keep their current reported values.
+
+| Flag           | Milan, Genoa, Bergamo, Siena | Turin | Venice |
+|----------------|:----------------------------:|:-----:|:------:|
+| `--tee`        | ✓                            | ✓     | ✓      |
+| `--snp-fw`     | ✓                            | ✓     | ✓      |
+| `--mask-chip`  | ✓                            | ✓     | ✓      |
+| `--bootloader` | ✓                            | ✓     |        |
+| `--microcode`  | ✓                            | ✓     |        |
+| `--fmc`        |                              | ✓     | ✓      |
+
+A blank cell means the flag is rejected for that generation, for example `invalid field bootloader for Venice`.
 
 **Example:**
 ```sh
-snphost config set 10 0 23 25 0
+snphost config set --bootloader 10
 ```
 
 #### 2.`reset`
@@ -368,18 +381,15 @@ To change the configuration of the SNP firmware, use the `config set` command fo
 
 **Usage:**
 ```bash
-snphost config set BOOTLOADER TEE SNP-FW MICROCODE MASK-CHIP
+snphost config set --bootloader BOOTLOADER
 ```
-In Turin and higher generations use,
-```bash
-snphost config set BOOTLOADER TEE SNP-FW MICROCODE MASK-CHIP FMC
-```
+
+Pass only the flags you want to change. Each flag changes only its own field, and the other reported values stay as they are. The table under `config set` in the Usage section lists which flags each generation accepts.
 
 This command is used to configure the TCB parameters and the Mask Chip value for the AMD SEV-SNP platform. The configuration consists of two main parts: setting the TCB values and setting the Mask Chip value.
 
 #### Part 1. TCB Parameters
 
-BOOTLOADER, TEE, SNP-FW, MICROCODE, FMC (Optional and applicable only to Turin and newer chips.)
 To view the current values of these fields, you can run:
 ```bash
 snphost show tcb
@@ -431,18 +441,18 @@ To set the TCB parameters and Mask Chip, you can use the following command:
 
 **Example:**
 ```bash
-snphost config set 10 0 23 25 0
+snphost config set --tee 0 --snp-fw 23 --bootloader 10 --microcode 25 --mask-chip 0
 ```
 
 In this example,
 ```bash
-10 is the Bootloader version.
-0 is the TEE version.
-23 is the SNP Firmware level.
-25 is the Microcode level.
-0 is the Mask Chip value which disables both mask chip id and mask chip key.
+--bootloader 10 is the Bootloader version.
+--tee 0 is the TEE version.
+--snp-fw 23 is the SNP Firmware level.
+--microcode 25 is the Microcode level.
+--mask-chip 0 disables both mask chip id and mask chip key.
 ```
-This command will update the values.
+Only the flags you pass are changed. On Venice, `--fmc 1` changes the FMC and leaves TEE and SNP firmware at their reported values. `--bootloader` on Venice fails with `invalid field bootloader for Venice`.
 
 To commit these changes to firmware, you must use the snphost commit command by running:
 
@@ -464,7 +474,7 @@ snphost config reset
 **Workflow:**
 
 ```bash
-snphost config set 10 0 23 25 0
+snphost config set --bootloader 10
 # decide to discard changes
 snphost config reset
 ```

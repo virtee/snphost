@@ -85,7 +85,7 @@ COMMANDS
         -h, --help      Show a help message.
 
 *snphost config set*::
-	usage: snphost config set BOOTLOADER TEE SNP-FW MICROCODE MASK-CHIP
+	usage: snphost config set [--tee TEE] [--snp-fw SNP-FW] [--mask-chip MASK-CHIP] [--bootloader BOOTLOADER] [--microcode MICROCODE] [--fmc FMC]
 
         This command allows the user to change the config of the SNP platform. The user can
         provide the desired versions of the different TCB paramerters they would like to modify.
@@ -93,11 +93,13 @@ COMMANDS
         user would have to use snphost commit. The user can also provide a new mask-chip value that 
         will change the mask chip bit field values in the config.
 
-        Explanation of the different parmeters:
-        BOOTLOADER: Desired reported bootloader version
+        All flags are optional. Pass only the flags you want to change. Omitted values keep their current reported values.
+
+        Explanation of the different parameters:
+        BOOTLOADER: Desired reported bootloader version (not valid on Venice)
         TEE: Desired reported PSP OS version
         SNP-FW: Desired reported SNP Firmware level
-        MICROCODE: Desired reported patch level of all the cores
+        MICROCODE: Desired reported patch level of all the cores (not valid on Venice)
         MASK-CHIP: Change the CHIP ID and CHIP KEY settings by changing the MASK-CHIP bits.
                    Valid values range from 0-3 depending on what bits the user wants enabled.
 
@@ -108,7 +110,15 @@ COMMANDS
 
                    For example, if the user would like MASK KEY to be enabled and CHIP ID disabled, 
                    then the they would pass in a 2.
-	FMC: Current FMC firmware version
+	FMC: Desired reported FMC firmware version (Turin and Venice only)
+
+        Flags accepted by each generation:
+          Milan, Genoa, Bergamo, Siena: --tee, --snp-fw, --mask-chip, --bootloader, --microcode
+          Turin: --tee, --snp-fw, --mask-chip, --bootloader, --microcode, --fmc
+          Venice: --tee, --snp-fw, --mask-chip, --fmc
+
+        Passing a flag the CPU does not accept fails with an error, for example
+        "invalid field bootloader for Venice".
 
   options:
         -h, --help      Show a help message.
