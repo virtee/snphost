@@ -156,28 +156,8 @@ pub fn vlek_hashsticks_url() -> Result<String> {
         "https://kdsintf.amd.com:444/vlek/v1/{}/hash_sticks",
         processor_generation.to_kds_url(),
     );
-    let parameters = format!(
-        "blSPL={:02}&teeSPL={:02}&snpSPL={:02}&ucodeSPL={:02}",
-        status.reported_tcb_version.bootloader,
-        status.reported_tcb_version.tee,
-        status.reported_tcb_version.snp,
-        status.reported_tcb_version.microcode
-    );
+    let parameters =
+        super::vek::get_vek_parameters(processor_generation, status.reported_tcb_version)?;
 
-    match processor_generation {
-        // Turin+ processors also require the FMC parameter to fetch VCEKs.
-        ProcessorGeneration::Turin => {
-            if let Some(fmc) = status.reported_tcb_version.fmc {
-                Ok(format!(
-                    "{}?fmcSPL={:02}&{}",
-                    hashsticks_endpoint, fmc, parameters
-                ))
-            } else {
-                Err(anyhow!(
-                    "Unable to retrieve FMC value from this Turin generation processor"
-                ))
-            }
-        }
-        _ => Ok(format!("{}?{}", hashsticks_endpoint, parameters)),
-    }
+    Ok(format!("{hashsticks_endpoint}?{parameters}"))
 }
