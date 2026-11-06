@@ -26,60 +26,142 @@ mod set {
 
     #[derive(Parser)]
     pub struct Args {
-        /// Bootloader version
-        /// (Unsigned 8-bit Integer)
-        #[arg(value_name = "bootloader", required = true)]
-        pub bootloader: u8,
+        /// PSP OS version (Unsigned 8-bit Integer).
+        /// Changes only this reported TCB field.
+        #[arg(long, value_name = "tee")]
+        pub tee: Option<u8>,
 
-        /// PSP OS version (Unsigned 8-bit Integer)
-        #[arg(value_name = "tee", required = true)]
-        pub tee: u8,
+        /// Version of the SNP firmware (Unsigned 8-bit Integer).
+        /// Changes only this reported TCB field.
+        #[arg(long, value_name = "snp-fw")]
+        pub snp_fw: Option<u8>,
 
-        /// Version of the SNP firmware (Unsigned 8-bit Integer)
-        #[arg(value_name = "snp-fw", required = true)]
-        pub snp_fw: u8,
+        /// Change mask chip bit field (Unsigned 32-bit Integer) values by providing decimal representation of desired change (0-3). Bit[0]: CHIP_ID, Bit[1]: CHIP_KEY. Both are disabled by default.
+        #[arg(long, value_name = "mask-chip")]
+        mask_chip: Option<u32>,
 
-        /// Microcode Patch level of all the cores (Unsigned 8-bit Integer)
-        #[arg(value_name = "microcode", required = true)]
-        pub microcode: u8,
+        /// Bootloader version (Unsigned 8-bit Integer).
+        /// Changes only this reported TCB field. Invalid on Venice.
+        #[arg(long, value_name = "bootloader")]
+        pub bootloader: Option<u8>,
 
-        /// Change mask chip bit field (Unsigned 32-bit Integer) values by providing decimal representation of desired change (0-3). Bit[0]: CHIP_ID, Bit[1]: CHIP_KEY. Both are disabled by default
-        #[arg(value_name = "mask-chip", required = true)]
-        mask_chip: u32,
+        /// Microcode patch level of all the cores (Unsigned 8-bit Integer).
+        /// Changes only this reported TCB field. Invalid on Venice.
+        #[arg(long, value_name = "microcode")]
+        pub microcode: Option<u8>,
 
-        /// FMC firmware version.
-        #[arg(value_name = "fmc", required = false)]
+        /// FMC firmware version (Unsigned 8-bit Integer).
+        /// Changes only this reported TCB field. Invalid before Turin.
+        #[arg(long, value_name = "fmc")]
         fmc: Option<u8>,
     }
 
     pub fn set_config(args: Args) -> Result<()> {
-        let fmc = match ProcessorGeneration::current()? {
-            ProcessorGeneration::Turin => {
-                let Some(fmc) = args.fmc else {
-                    return Err(anyhow!(
-                        "Turin generation processor requires FMC version when setting TCB"
-                    ));
-                };
+        if args.tee.is_none()
+            && args.snp_fw.is_none()
+            && args.mask_chip.is_none()
+            && args.bootloader.is_none()
+            && args.microcode.is_none()
+            && args.fmc.is_none()
+        {
+            return Err(anyhow!("no config fields were provided"));
+        }
 
-                Some(fmc)
-            }
-            _ => None,
+        let generation = ProcessorGeneration::current()?;
+        reject_invalid_fields(&generation, &args)?;
+
+        let status = snp_platform_status()?;
+        let tcb = tcb_for_generation(&generation, &args, status.reported_tcb_version);
+        let mask_chip = match args.mask_chip {
+            Some(mask_chip) => MaskId(mask_chip),
+            None => mask_id_from_policy(status.platform_policy),
         };
 
-        // Create Tcb with provided values
-        let tcb = TcbVersion::new(fmc, args.bootloader, args.tee, args.snp_fw, args.microcode);
-
-        // Create Mask Chip with provided value
-        let mask_chip = MaskId(args.mask_chip);
-
-        // Create new Config
-        let config = Config::new(tcb, mask_chip);
-
-        // Change Config
         let mut fw = firmware()?;
-        fw.snp_set_config(config)
+        fw.snp_set_config(Config::new(tcb, mask_chip))
             .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
             .context("Error setting a new snp config")
+    }
+
+    fn reject_invalid_fields(generation: &ProcessorGeneration, args: &Args) -> Result<()> {
+        match generation {
+            ProcessorGeneration::Milan
+            | ProcessorGeneration::Genoa
+            | ProcessorGeneration::Bergamo
+            | ProcessorGeneration::Siena => reject_field(args.fmc, generation, "fmc"),
+            ProcessorGeneration::Turin => Ok(()),
+            ProcessorGeneration::Venice => {
+                reject_field(args.bootloader, generation, "bootloader")?;
+                reject_field(args.microcode, generation, "microcode")
+            }
+        }
+    }
+
+    fn tcb_for_generation(
+        generation: &ProcessorGeneration,
+        args: &Args,
+        mut tcb: TcbVersion,
+    ) -> TcbVersion {
+        if let Some(tee) = args.tee {
+            tcb.tee = tee;
+        }
+        if let Some(snp) = args.snp_fw {
+            tcb.snp = snp;
+        }
+
+        match generation {
+            ProcessorGeneration::Milan
+            | ProcessorGeneration::Genoa
+            | ProcessorGeneration::Bergamo
+            | ProcessorGeneration::Siena => {
+                if let Some(bootloader) = args.bootloader {
+                    tcb.bootloader = Some(bootloader);
+                }
+                if let Some(microcode) = args.microcode {
+                    tcb.microcode = Some(microcode);
+                }
+                tcb.fmc = None;
+            }
+            ProcessorGeneration::Turin => {
+                if let Some(bootloader) = args.bootloader {
+                    tcb.bootloader = Some(bootloader);
+                }
+                if let Some(microcode) = args.microcode {
+                    tcb.microcode = Some(microcode);
+                }
+                if let Some(fmc) = args.fmc {
+                    tcb.fmc = Some(fmc);
+                }
+            }
+            ProcessorGeneration::Venice => {
+                if let Some(fmc) = args.fmc {
+                    tcb.fmc = Some(fmc);
+                }
+                tcb.bootloader = None;
+                tcb.microcode = None;
+            }
+        }
+
+        tcb
+    }
+
+    fn reject_field(value: Option<u8>, generation: &ProcessorGeneration, name: &str) -> Result<()> {
+        if value.is_some() {
+            Err(anyhow!("invalid field {name} for {generation}"))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn mask_id_from_policy(policy: PlatformPolicy) -> MaskId {
+        let mut mask = 0u32;
+        if policy.mask_chip_id() {
+            mask |= 1;
+        }
+        if policy.mask_chip_key() {
+            mask |= 2;
+        }
+        MaskId(mask)
     }
 }
 
