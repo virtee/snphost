@@ -77,6 +77,55 @@ pub fn cmd(vek: Vek) -> Result<()> {
     Ok(())
 }
 
+pub(crate) fn get_vek_parameters(gen: ProcessorGeneration, tcb: TcbVersion) -> Result<String> {
+    // Milan through Turin report the bootloader and microcode. Turin and Venice report the FMC.
+    // Keep fmcSPL first. The previous snphost URL was
+    // fmcSPL&blSPL&teeSPL&snpSPL&ucodeSPL, and offline VCEK caches key on the full URL.
+    let mut params = Vec::new();
+
+    if matches!(
+        gen,
+        ProcessorGeneration::Turin | ProcessorGeneration::Venice
+    ) {
+        params.push(spl("fmcSPL", require_tcb_field(&gen, tcb.fmc, "FMC")?));
+    }
+
+    match &gen {
+        ProcessorGeneration::Venice => {
+            params.push(spl("teeSPL", tcb.tee));
+            params.push(spl("snpSPL", tcb.snp));
+        }
+        ProcessorGeneration::Milan
+        | ProcessorGeneration::Bergamo
+        | ProcessorGeneration::Genoa
+        | ProcessorGeneration::Siena
+        | ProcessorGeneration::Turin => {
+            params.push(spl(
+                "blSPL",
+                require_tcb_field(&gen, tcb.bootloader, "BootLoader")?,
+            ));
+            params.push(spl("teeSPL", tcb.tee));
+            params.push(spl("snpSPL", tcb.snp));
+            params.push(spl(
+                "ucodeSPL",
+                require_tcb_field(&gen, tcb.microcode, "Microcode")?,
+            ));
+        }
+    }
+
+    Ok(params.join("&"))
+}
+
+fn require_tcb_field(gen: &ProcessorGeneration, value: Option<u8>, name: &str) -> Result<u8> {
+    value.ok_or_else(|| {
+        anyhow!("Unable to retrieve {name} value from this {gen} generation processor")
+    })
+}
+
+fn spl(name: &str, value: u8) -> String {
+    format!("{name}={value:02}")
+}
+
 pub fn fetch(cert: &Option<PathBuf>, key: &Option<PathBuf>, url: &str) -> Result<Certificate> {
     let mut handle = Easy::new();
     let mut buf: Vec<u8> = Vec::new();
@@ -123,25 +172,7 @@ pub fn vek_url(endorser: Endorsement) -> Result<String> {
             processor_generation.to_kds_url(),
         )
     };
-    let parameters = format!(
-        "blSPL={:02}&teeSPL={:02}&snpSPL={:02}&ucodeSPL={:02}",
-        status.reported_tcb_version.bootloader,
-        status.reported_tcb_version.tee,
-        status.reported_tcb_version.snp,
-        status.reported_tcb_version.microcode
-    );
+    let parameters = get_vek_parameters(processor_generation, status.reported_tcb_version)?;
 
-    match processor_generation {
-        // Turin+ processors also require the FMC parameter to fetch VCEKs.
-        ProcessorGeneration::Turin => {
-            if let Some(fmc) = status.reported_tcb_version.fmc {
-                Ok(format!("{}?fmcSPL={:02}&{}", vek_endpoint, fmc, parameters))
-            } else {
-                Err(anyhow!(
-                    "Unable to retrieve FMC value from this Turin generation processor"
-                ))
-            }
-        }
-        _ => Ok(format!("{}?{}", vek_endpoint, parameters)),
-    }
+    Ok(format!("{}?{}", vek_endpoint, parameters))
 }
