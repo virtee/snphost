@@ -71,7 +71,7 @@ impl ProcessorGeneration {
                 _ => Err(anyhow!("processor is not of a known SEV-SNP model")),
             },
             0x1A => match model {
-                0x0..=0x11 => Ok(Self::Turin),
+                0x0..=0x1F => Ok(Self::Turin),
                 _ => Err(anyhow!("processor is not of a known SEV-SNP model")),
             },
             _ => Err(anyhow!("processor is not of a known SEV-SNP family")),
