@@ -530,11 +530,11 @@ sudo snphost config set-reported-tcb
 **TCB Components:**
 | Component | Description |
 |-----------|-------------|
-| Microcode | CPU microcode version |
+| Microcode | CPU microcode version. Present through Turin. None on Venice. |
 | SNP | SNP firmware security version |
 | TEE | Trusted Execution Environment version |
-| Boot Loader | PSP bootloader security version |
-| FMC | Firmware Management Component (Turin+ only; None on older systems) |
+| Boot Loader | PSP bootloader security version. Present through Turin. None on Venice. |
+| FMC | Firmware Management Component. Present on Turin and Venice. None on older systems. |
 
 **Expected Mismatch:** If you intentionally set lower Reported TCB for backwards compatibility.
 

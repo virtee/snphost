@@ -9,6 +9,7 @@ pub enum ProcessorGeneration {
     Bergamo,
     Siena,
     Turin,
+    Venice,
 }
 
 impl ProcessorGeneration {
@@ -72,6 +73,7 @@ impl ProcessorGeneration {
             },
             0x1A => match model {
                 0x0..=0x11 => Ok(Self::Turin),
+                0x50..=0x5F | 0xC0..=0xCF => Ok(Self::Venice),
                 _ => Err(anyhow!("processor is not of a known SEV-SNP model")),
             },
             _ => Err(anyhow!("processor is not of a known SEV-SNP family")),
@@ -98,6 +100,7 @@ impl std::fmt::Display for ProcessorGeneration {
                 Self::Bergamo => "Bergamo",
                 Self::Siena => "Siena",
                 Self::Turin => "Turin",
+                Self::Venice => "Venice",
             }
         )
     }
