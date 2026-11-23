@@ -11,7 +11,7 @@ use std::{
     str::from_utf8,
 };
 
-use clap::{Args, ValueEnum};
+use clap::Args;
 use colorful::*;
 use serde::{Serialize, Serializer};
 
@@ -22,12 +22,6 @@ enum Verbosity {
     Default,
     Short,
     Verbose,
-}
-
-#[derive(ValueEnum, Clone, Copy, PartialEq, Eq)]
-enum OutputFormat {
-    Default,
-    Json,
 }
 
 #[derive(Args, Clone)]

@@ -188,7 +188,30 @@ Shows the current platform and reported Trusted Computing Base (TCB) version.
 
 **Usage:**
 ```sh
-snphost show tcb
+snphost show tcb [--output <default|json>]
+```
+
+Use `--output json` (or `-o json`) to print the TCB versions as JSON:
+```sh
+snphost show tcb -o json
+```
+```json
+{
+  "platform_tcb": {
+    "bootloader": 10,
+    "fmc": null,
+    "microcode": 88,
+    "snp_fw": 23,
+    "tee": 0
+  },
+  "reported_tcb": {
+    "bootloader": 9,
+    "fmc": null,
+    "microcode": 88,
+    "snp_fw": 23,
+    "tee": 0
+  }
+}
 ```
 
 #### 4. `vcek-url`
