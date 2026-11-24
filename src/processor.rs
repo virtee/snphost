@@ -9,6 +9,7 @@ pub enum ProcessorGeneration {
     Bergamo,
     Siena,
     Turin,
+    Sorano,
     Venice,
 }
 
@@ -40,7 +41,8 @@ impl ProcessorGeneration {
     pub(crate) fn current() -> Result<Self> {
         let cpuid = unsafe { x86_64::__cpuid(0x8000_0001) };
 
-        // Bits 31:28 are used to differentiate between Bergamo and Siena machines.
+        // Bits 31:28 (PkgType) are used to differentiate between Bergamo and Siena,
+        // and between Turin and Sorano.
         let socket = (cpuid.ebx & 0xF0000000u32) >> 0x1C;
 
         let bytes: Vec<u8> = cpuid.eax.to_le_bytes().to_vec();
@@ -72,7 +74,11 @@ impl ProcessorGeneration {
                 _ => Err(anyhow!("processor is not of a known SEV-SNP model")),
             },
             0x1A => match model {
-                0x0..=0x1F => Ok(Self::Turin),
+                0x0..=0x1F => match (model, socket) {
+                    (0x0..=0x0F, 0x8) => Ok(Self::Sorano),
+                    (_, 0x4) => Ok(Self::Turin),
+                    _ => Err(anyhow!("processor is not of a known SEV-SNP generation")),
+                },
                 0x50..=0x5F | 0xC0..=0xCF => Ok(Self::Venice),
                 _ => Err(anyhow!("processor is not of a known SEV-SNP model")),
             },
@@ -83,6 +89,7 @@ impl ProcessorGeneration {
     pub(crate) fn to_kds_url(&self) -> String {
         match self {
             Self::Genoa | Self::Bergamo | Self::Siena => &Self::Genoa,
+            Self::Sorano => &Self::Turin,
             _ => self,
         }
         .to_string()
@@ -100,6 +107,7 @@ impl std::fmt::Display for ProcessorGeneration {
                 Self::Bergamo => "Bergamo",
                 Self::Siena => "Siena",
                 Self::Turin => "Turin",
+                Self::Sorano => "Sorano",
                 Self::Venice => "Venice",
             }
         )

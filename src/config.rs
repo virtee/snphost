@@ -89,7 +89,7 @@ mod set {
             | ProcessorGeneration::Genoa
             | ProcessorGeneration::Bergamo
             | ProcessorGeneration::Siena => reject_field(args.fmc, generation, "fmc"),
-            ProcessorGeneration::Turin => Ok(()),
+            ProcessorGeneration::Turin | ProcessorGeneration::Sorano => Ok(()),
             ProcessorGeneration::Venice => {
                 reject_field(args.bootloader, generation, "bootloader")?;
                 reject_field(args.microcode, generation, "microcode")
@@ -122,7 +122,7 @@ mod set {
                 }
                 tcb.fmc = None;
             }
-            ProcessorGeneration::Turin => {
+            ProcessorGeneration::Turin | ProcessorGeneration::Sorano => {
                 if let Some(bootloader) = args.bootloader {
                     tcb.bootloader = Some(bootloader);
                 }

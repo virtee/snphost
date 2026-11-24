@@ -78,14 +78,15 @@ pub fn cmd(vek: Vek) -> Result<()> {
 }
 
 pub(crate) fn get_vek_parameters(gen: ProcessorGeneration, tcb: TcbVersion) -> Result<String> {
-    // Milan through Turin report the bootloader and microcode. Turin and Venice report the FMC.
+    // Milan through Turin report the bootloader and microcode.
+    // Turin, Sorano and Venice report the FMC.
     // Keep fmcSPL first. The previous snphost URL was
     // fmcSPL&blSPL&teeSPL&snpSPL&ucodeSPL, and offline VCEK caches key on the full URL.
     let mut params = Vec::new();
 
     if matches!(
         gen,
-        ProcessorGeneration::Turin | ProcessorGeneration::Venice
+        ProcessorGeneration::Turin | ProcessorGeneration::Sorano | ProcessorGeneration::Venice
     ) {
         params.push(spl("fmcSPL", require_tcb_field(&gen, tcb.fmc, "FMC")?));
     }
@@ -99,7 +100,8 @@ pub(crate) fn get_vek_parameters(gen: ProcessorGeneration, tcb: TcbVersion) -> R
         | ProcessorGeneration::Bergamo
         | ProcessorGeneration::Genoa
         | ProcessorGeneration::Siena
-        | ProcessorGeneration::Turin => {
+        | ProcessorGeneration::Turin
+        | ProcessorGeneration::Sorano => {
             params.push(spl(
                 "blSPL",
                 require_tcb_field(&gen, tcb.bootloader, "BootLoader")?,
